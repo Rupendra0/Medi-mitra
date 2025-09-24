@@ -32,6 +32,12 @@ export default function initSocket(io) {
   });
 
   io.on("connection", (socket) => {
+    // Basic connection log
+    if (socket.data?.user) {
+      console.log("🔌 Socket connected:", socket.id, socket.data.user);
+    } else {
+      console.log("🔌 Socket connected without auth:", socket.id);
+    }
     // ✅ Chat events
     socket.on("chat:message", (data) => io.to(data.to).emit("chat:message", data));
 
@@ -49,11 +55,18 @@ export default function initSocket(io) {
     });
 
     // ✅ Incoming call (doctor → patient)
-    socket.on("webrtc:start-call", ({ patientId, appointmentId }) => {
-      io.to(patientId).emit("webrtc:start-call", {
+    socket.on("webrtc:start-call", ({ patientId, to, appointmentId, fromUserName }) => {
+      const target = patientId || to; // frontend may send either field
+      if (!target) return;
+      const payload = {
         from: socket.data.user?.id,
+        fromUserName: fromUserName || socket.data.user?.name || "Doctor",
         appointmentId,
-      });
+        timestamp: Date.now(),
+        type: "call-notification",
+      };
+      console.log("📞 Emitting webrtc:start-call to", target, payload);
+      io.to(target).emit("webrtc:start-call", payload);
     });
 
     // ✅ Patient rejects call

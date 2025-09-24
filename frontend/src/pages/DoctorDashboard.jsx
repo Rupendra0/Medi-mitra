@@ -54,7 +54,7 @@ export default function DoctorDashboard() {
 
     // ✅ Emit start-call event
     socket.emit("webrtc:start-call", {
-      to: patientId,
+      patientId,
       fromUserName: currentUser?.name || 'Doctor',
       appointmentId,
     });

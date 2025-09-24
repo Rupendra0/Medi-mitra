@@ -29,11 +29,14 @@ export default function PatientDashboard() {
   // This new useEffect listens for incoming calls from the doctor
   useEffect(() => {
     const socket = getSocket();
-    const handleIncomingCall = ({ fromUserName, appointmentId }) => {
+    const handleStartCall = ({ fromUserName, appointmentId }) => {
       setIncomingCall({ fromUserName, appointmentId });
     };
-    socket.on('webrtc:offer', handleIncomingCall);
-    return () => socket.off('webrtc:offer', handleIncomingCall);
+    // Prefer explicit start-call notification
+    socket.on('webrtc:start-call', handleStartCall);
+    return () => {
+      socket.off('webrtc:start-call', handleStartCall);
+    };
   }, []);
 
   const acceptCall = () => {

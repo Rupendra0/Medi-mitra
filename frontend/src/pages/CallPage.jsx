@@ -51,7 +51,8 @@ export default function CallPage() {
         const socket = getSocket();
         socket.emit("webrtc:start-call", {
           patientId: targetUserId,
-          appointmentId: appointmentId
+          appointmentId: appointmentId,
+          fromUserName: user?.name || 'Doctor'
         });
         
         // Start the actual WebRTC call
