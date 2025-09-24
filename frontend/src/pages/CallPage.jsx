@@ -11,15 +11,21 @@ export default function CallPage() {
   const [searchParams] = useSearchParams();
   const [resolvedPatientId, setResolvedPatientId] = useState(searchParams.get("patientId"));
   const user = useSelector((state) => state.auth.user);
-  const { localVideoRef, remoteVideoRef, startCall, answerCall } =
+  const { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer } =
     useWebRTC(user);
 
   // Patient auto-answers when an offer arrives
   useEffect(() => {
     if (user?.role === "patient") {
+      console.log("🏥 Patient on call page - attempting to answer:", {
+        hasIncomingOffer: !!incomingOffer,
+        incomingOffer: incomingOffer,
+        userRole: user?.role,
+        appointmentId
+      });
       answerCall();
     }
-  }, [user, answerCall]);
+  }, [user, answerCall, incomingOffer, appointmentId]);
 
   // Doctor: if patientId not provided, resolve from appointment API
   useEffect(() => {

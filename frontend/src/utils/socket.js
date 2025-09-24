@@ -7,6 +7,11 @@ export function getSocket() {
   if (socket) return socket;
   const url = import.meta.env.VITE_API_URL;
   const authToken = typeof window !== 'undefined' ? window.__AUTH_TOKEN : undefined;
+  console.log("🔌 Creating socket connection:", {
+    url,
+    hasAuthToken: !!authToken,
+    authToken: authToken ? `${authToken.substring(0, 10)}...` : 'none'
+  });
   socket = io(url, {
     withCredentials: true,
     reconnectionAttempts: 5,
@@ -14,8 +19,9 @@ export function getSocket() {
     transports: ["websocket"],
     ...(authToken ? { auth: { token: authToken } } : {}),
   });
-  socket.on('connect', () => console.debug('shared socket connected', socket.id));
-  socket.on('disconnect', (reason) => console.debug('shared socket disconnected', reason));
+  socket.on('connect', () => console.log('✅ Shared socket connected:', socket.id));
+  socket.on('disconnect', (reason) => console.log('❌ Shared socket disconnected:', reason));
+  socket.on('connect_error', (error) => console.error('❌ Socket connection error:', error));
   return socket;
 }
 

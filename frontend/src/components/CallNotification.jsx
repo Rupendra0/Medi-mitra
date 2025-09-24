@@ -15,7 +15,14 @@ export default function CallNotification() {
     const socket = getSocket();
     
     const handleIncomingCall = (data) => {
-      console.log('📞 Incoming call notification:', data);
+      console.log('📞 Incoming call notification received:', data);
+      console.log('📞 Notification details:', {
+        hasData: !!data,
+        from: data?.from,
+        appointmentId: data?.appointmentId,
+        userRole: user?.role,
+        socketConnected: socket?.connected
+      });
       setIncomingCall(data);
       setShowNotification(true);
       

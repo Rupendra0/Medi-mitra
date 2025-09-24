@@ -14,10 +14,17 @@ export default function useWebRTC(user) {
 
   useEffect(() => {
     socketRef.current = getSocket();
+    console.log("🔌 WebRTC Hook initialized:", {
+      socketConnected: socketRef.current?.connected,
+      userId: user?._id,
+      userRole: user?.role,
+      socketId: socketRef.current?.id
+    });
 
     if (user?._id) {
       // 🔑 Register user with signaling server
       socketRef.current.emit("register", user._id);
+      console.log("📝 Registered user with socket:", user._id);
     }
 
     // Create RTCPeerConnection
@@ -80,6 +87,12 @@ export default function useWebRTC(user) {
     // Incoming offer: payload shape { offer, from }
     const handleOffer = async (payload) => {
       console.log("📥 Incoming Offer:", payload);
+      console.log("📥 Offer details:", {
+        hasOffer: !!payload?.offer,
+        from: payload?.from,
+        offerType: payload?.offer?.type,
+        socketConnected: socketRef.current?.connected
+      });
       if (!payload?.offer) return;
       remoteUserIdRef.current = payload.from || null;
       setIncomingOffer(payload);
@@ -88,28 +101,42 @@ export default function useWebRTC(user) {
     // Incoming answer: payload shape { answer, from }
     const handleAnswer = async (payload) => {
       console.log("📥 Incoming Answer:", payload);
+      console.log("📥 Answer details:", {
+        hasAnswer: !!payload?.answer,
+        from: payload?.from,
+        answerType: payload?.answer?.type,
+        socketConnected: socketRef.current?.connected
+      });
       try {
         if (pcRef.current && payload?.answer) {
           await pcRef.current.setRemoteDescription(
             new RTCSessionDescription(payload.answer)
           );
+          console.log("✅ Remote answer applied successfully");
         }
       } catch (err) {
-        console.error("Error applying remote answer:", err);
+        console.error("❌ Error applying remote answer:", err);
       }
     };
 
     // Incoming ICE: payload shape { candidate, from }
     const handleIce = async (payload) => {
       console.log("📥 Incoming ICE Candidate:", payload);
+      console.log("📥 ICE details:", {
+        hasCandidate: !!payload?.candidate,
+        from: payload?.from,
+        candidateType: payload?.candidate?.candidate,
+        socketConnected: socketRef.current?.connected
+      });
       try {
         if (pcRef.current && payload?.candidate) {
           await pcRef.current.addIceCandidate(
             new RTCIceCandidate(payload.candidate)
           );
+          console.log("✅ ICE candidate added successfully");
         }
       } catch (err) {
-        console.error("Error adding ICE candidate:", err);
+        console.error("❌ Error adding ICE candidate:", err);
       }
     };
 
