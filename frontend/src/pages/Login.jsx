@@ -33,6 +33,9 @@ function Login() {
       }
       dispatch(loginSuccess({ user: res.data.user }));
 
+      // Store token for shared socket client
+      window.__AUTH_TOKEN = res.data.token;
+      
       const socket = io(API_URL, {
         withCredentials: true,
         auth: { token: res.data.token },

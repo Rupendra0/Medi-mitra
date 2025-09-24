@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import useWebRTC from "../hooks/useWebRTC";
 import { useSelector } from "react-redux";
 import api from "../utils/api";
+import { getSocket } from "../utils/socket";
 
 export default function CallPage() {
   const { id: appointmentId } = useParams();
@@ -40,6 +41,14 @@ export default function CallPage() {
       const targetUserId = resolvedPatientId || null;
       console.log("Doctor starting call", { appointmentId, targetUserId });
       if (targetUserId) {
+        // Send call notification to patient
+        const socket = getSocket();
+        socket.emit("webrtc:start-call", {
+          patientId: targetUserId,
+          appointmentId: appointmentId
+        });
+        
+        // Start the actual WebRTC call
         startCall(targetUserId);
       } else {
         console.warn("No patientId available. Cannot start call.");

@@ -63,8 +63,14 @@ const Signup = () => {
       }
       if (!res.ok) throw new Error(data.message || "Signup failed");
 
+      // Store token for shared socket client
+      window.__AUTH_TOKEN = data.token;
+
       // After signup → connect socket.io
-      const socket = io(API_URL, { withCredentials: true });
+      const socket = io(API_URL, { 
+        withCredentials: true,
+        auth: { token: data.token }
+      });
       socket.emit("register", {
         userId: data.user?._id,
         role: data.user?.role,

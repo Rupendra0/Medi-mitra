@@ -11,6 +11,7 @@ import DoctorDashboard from "./pages/DoctorDashboard";
 import CallPage from "./pages/CallPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import CallNotification from "./components/CallNotification";
 
 // This component now handles the loading state
 const ProtectedRoute = ({ children, role }) => {
@@ -57,6 +58,7 @@ function App() {
   return (
     <Router>
       <Layout>
+        <CallNotification />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

@@ -23,8 +23,21 @@ export default function useWebRTC(user) {
     // Create RTCPeerConnection
     pcRef.current = new RTCPeerConnection({
       iceServers: [
+        // STUN
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        // TURN fallback (public/demo). Replace with your managed TURN for production.
+        // Example: OpenRelayProject (usage limits apply)
+        // Username and credential are public demo creds; for hackathon reliability only.
+        {
+          urls: [
+            "turn:openrelay.metered.ca:80",
+            "turn:openrelay.metered.ca:443",
+            "turns:openrelay.metered.ca:443?transport=tcp"
+          ],
+          username: "openrelayproject",
+          credential: "openrelayproject"
+        }
       ],
     });
 
