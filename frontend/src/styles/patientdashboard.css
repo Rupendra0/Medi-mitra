@@ -1,0 +1,98 @@
+/* Patient Dashboard Styles */
+.patient-dashboard {
+  background: #181818;
+  color: #eafaf7;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 2rem;
+  background: #222;
+  border-bottom: 2px solid #0ef6cc;
+  font-size: 1.1rem;
+}
+.lang-switcher button {
+  background: #222;
+  color: #0ef6cc;
+  border: none;
+  margin: 0 0.2rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.lang-switcher .active-lang {
+  background: #0ef6cc;
+  color: #222;
+}
+.dashboard-layout {
+  display: flex;
+  min-height: 80vh;
+}
+.dashboard-sidebar {
+  background: #222;
+  padding: 2rem 1rem 2rem 2rem;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  border-right: 2px solid #0ef6cc;
+}
+.dashboard-sidebar button {
+  background: #222;
+  color: #0ef6cc;
+  border: none;
+  font-size: 1.08rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.dashboard-sidebar button.active {
+  background: #0ef6cc;
+  color: #222;
+}
+.dashboard-main {
+  flex: 1;
+  padding: 2.5rem 3rem;
+  background: #181818;
+  min-height: 80vh;
+}
+.quick-btn {
+  background: linear-gradient(90deg,#0ef6cc,#008170);
+  color: #222;
+  border: none;
+  border-radius: 1rem;
+  padding: 0.8rem 2rem;
+  font-weight: bold;
+  font-size: 1.08rem;
+  box-shadow: 0 2px 16px #0ef6cc88;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s, color 0.2s;
+}
+.quick-btn:hover {
+  background: linear-gradient(90deg,#008170,#0ef6cc);
+  color: #fff;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+li {
+  margin-bottom: 0.7rem;
+  font-size: 1.05rem;
+}
+button {
+  outline: none;
+}

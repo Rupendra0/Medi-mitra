@@ -1,0 +1,304 @@
+
+:root {
+  --bg-dark: var(--color-black);
+  --bg-surface: var(--color-dark-grey);
+  --green-light: var(--color-primary-accent);
+  --green-dark: var(--color-secondary-accent);
+  --text-light: var(--color-primary-accent);
+  --text-muted: var(--color-secondary-accent);
+  --border-dark: var(--color-secondary-accent);
+  --accent-blue: var(--color-primary-accent);
+  --accent-hover: var(--color-secondary-accent);
+}
+
+/* === Global === */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  font-family: 'Segoe UI', sans-serif;
+  color: var(--text-light);
+}
+
+/* === Navbar === */
+.navbar {
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+  padding: 16px 24px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.navbar-logo {
+  font-size: 20px;
+  font-weight: bold;
+  text-decoration: none;
+  color: var(--text-light);
+  transition: color 0.3s ease;
+}
+.navbar-logo:hover {
+  color: var(--green-light);
+}
+.navbar-links a {
+  margin-left: 16px;
+  text-decoration: none;
+  color: white;
+  font-size: 15px;
+  transition: color 0.3s ease;
+}
+.navbar-links a:hover {
+  color: var(--green-light);
+}
+.navbar-links a.active {
+  border-bottom: 2px solid var(--green-light);
+  padding-bottom: 2px;
+  color: var(--green-light);
+}
+
+/* === Home Page === */
+.home-container {
+  background-color: var(--bg-dark);
+  color: white;
+}
+
+/* AI Section */
+.ai-section {
+  padding: 48px 24px;
+  background-color: var(--bg-surface);
+}
+.ai-heading {
+  font-size: 28px;
+  color: var(--green-light);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* Hero Section */
+.hero-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(to right, #0f1115, #1a1c23);
+  padding: 48px 24px;
+  text-align: center;
+}
+.hero-text h1 {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+.hero-text p {
+  font-size: 18px;
+  margin-bottom: 24px;
+}
+.hero-buttons a {
+  margin: 0 12px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+.hero-buttons a:first-child {
+  background-color: white;
+  color: var(--accent-blue);
+}
+.hero-buttons a:last-child {
+  background-color: var(--green-light);
+  color: white;
+}
+.hero-buttons a:hover {
+  transform: scale(1.05);
+}
+.hero-image img {
+  max-width: 300px;
+  margin-top: 32px;
+}
+
+/* Features Section */
+.features-section {
+  padding: 48px 24px;
+  background-color: var(--bg-surface);
+}
+.features-section h2 {
+  font-size: 24px;
+  text-align: center;
+  color: var(--green-light);
+  margin-bottom: 32px;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+.feature-card {
+  background-color: #2a2d36;
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+.feature-card img {
+  width: 64px;
+  margin-bottom: 16px;
+}
+.feature-card h3 {
+  font-size: 18px;
+  color: var(--green-light);
+  margin-bottom: 8px;
+}
+.feature-card p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px;
+  font-size: 14px;
+  color: #94a3b8;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-dark);
+}
+
+/* === Dashboard Layout === */
+.dashboard-container {
+  min-height: 100vh;
+  display: flex;
+  background-color: var(--bg-dark);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Back Button */
+.back-button {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(to right, var(--accent-blue), var(--green-light));
+  color: white;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+.back-button:hover {
+  background: linear-gradient(to right, var(--accent-hover), var(--green-dark));
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 256px;
+  background: linear-gradient(to bottom, #1f4022, #2e7d32);
+  color: white;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.sidebar button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.sidebar button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.01);
+}
+
+/* Main Content */
+.main-content {
+  flex-grow: 1;
+  padding: 40px;
+  background-color: var(--bg-surface);
+  color: white;
+  border-left: 1px solid var(--border-dark);
+}
+.main-content h1 {
+  font-size: 30px;
+  font-weight: bold;
+  color: var(--green-light);
+  margin-bottom: 12px;
+}
+.main-content p {
+  font-size: 18px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+/* === Symptom Checker === */
+.symptom-checker {
+  background-color: var(--bg-surface);
+  padding: 28px;
+  border-radius: 16px;
+  border: 1px solid var(--border-dark);
+  margin-top: 40px;
+}
+.symptom-checker h2 {
+  font-size: 22px;
+  color: var(--green-light);
+  margin-bottom: 16px;
+}
+.symptom-checker p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.symptom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.symptom-button {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  background-color: #2a2d36;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.symptom-button:hover {
+  background-color: #334155;
+  transform: scale(1.02);
+}
+.symptom-button.selected {
+  background-color: var(--green-light);
+  color: white;
+  border-color: var(--green-light);
+}
+.check-button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(to right, var(--accent-blue), var(--green-light));
+  color: white;
+  font-weight: bold;
+}

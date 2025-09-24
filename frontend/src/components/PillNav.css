@@ -1,0 +1,605 @@
+/* PillNav.css - Expert UI Design System */
+
+:root {
+  /* Design Tokens - Medical Professional Theme */
+  --nav-primary: #008170;
+  --nav-primary-hover: #005B41;
+  --nav-primary-light: rgba(0, 129, 112, 0.1);
+  --nav-surface: rgba(255, 255, 255, 0.98);
+  --nav-surface-glass: rgba(255, 255, 255, 0.85);
+  --nav-text-primary: #2D3748;
+  --nav-text-inverse: #FFFFFF;
+  --nav-shadow: rgba(0, 129, 112, 0.15);
+  --nav-shadow-hover: rgba(0, 129, 112, 0.25);
+  --nav-border: rgba(0, 129, 112, 0.2);
+  --nav-accent: #00D4AA;
+  
+  /* Layout Variables */
+  /* Ensure navbar is tall enough for logo and pill container to avoid overflow */
+  --nav-logo-size: 80px;
+  --nav-height: 72px;
+  --nav-pill-height: 48px;
+  --nav-pill-padding: 20px;
+  --nav-pill-gap: 8px;
+  --nav-border-radius: 24px;
+  --nav-shadow-blur: 20px;
+  
+  /* Animation Variables */
+  --nav-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --nav-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --nav-scale-hover: 1.02;
+  --nav-translate-hover: -2px;
+}
+
+/* Main Navigation Container - Sticky Professional Layout */
+.pill-nav-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--nav-surface-glass);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--nav-border);
+  box-shadow: 0 4px var(--nav-shadow-blur) var(--nav-shadow);
+  transition: var(--nav-transition);
+}
+
+.pill-nav-container.scrolled {
+  background: var(--nav-surface);
+  box-shadow: 0 8px 32px var(--nav-shadow);
+}
+
+/* Expert Navigation Layout */
+.pill-nav {
+  display: flex;
+  align-items: center;
+  height: var(--nav-height);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  position: relative;
+}
+
+/* Three-Zone Layout */
+.pill-nav-left {
+  flex: none;
+  width: var(--nav-logo-size);
+  /* keep logo area vertically centered without increasing navbar height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--nav-height);
+}
+
+.pill-nav-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pill-nav-right {
+  flex: none;
+  width: var(--nav-logo-size);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* Logo - Fixed at Far Left */
+.pill-logo {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--nav-logo-size);
+  /* Make the visible logo area match the navbar height so it doesn't overflow */
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  z-index: 1001;
+  overflow: hidden;
+}
+
+.pill-logo img {
+  /* Constrain the actual image to fit inside the navbar (keeps aspect ratio) */
+  max-height: calc(var(--nav-height) - 8px);
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Optional debug outlines: add class `debug-pillnav` to <body> to visualize element boxes */
+.debug-pillnav .pill-nav { outline: 2px dashed rgba(255,0,0,0.2); }
+.debug-pillnav .pill-nav-items { outline: 2px dashed rgba(0,255,0,0.2); }
+.debug-pillnav .pill { outline: 2px dashed rgba(0,0,255,0.15); }
+
+/* Centered Pill Navigation Container */
+.pill-nav-items {
+  display: flex;
+  align-items: center;
+  /* Fit inside the navbar: keep the pill container compact */
+  height: calc(var(--nav-height) - 20px);
+  background: var(--nav-surface);
+  border: 1px solid var(--nav-border);
+  border-radius: calc(var(--nav-pill-height) / 2);
+  padding: 4px 6px;
+  box-shadow: 0 4px 24px var(--nav-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Ensure sizing includes padding/border so height calculations don't overflow */
+.pill-nav,
+.pill-nav-items,
+.pill-list,
+.pill {
+  box-sizing: border-box;
+}
+
+/* Expert Pill List Design */
+.pill-list {
+  display: flex;
+  align-items: center;
+  gap: var(--nav-pill-gap);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.pill-list > li {
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+
+/* Premium Pill Buttons */
+.pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--nav-pill-height) - 10px);
+  padding: 0 var(--nav-pill-padding);
+  background: transparent;
+  color: var(--nav-text-primary);
+  text-decoration: none;
+  border-radius: calc((var(--nav-pill-height) - 8px) / 2);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: var(--nav-transition);
+  border: 1px solid transparent;
+  min-width: 80px;
+  align-self: center;
+  margin: 0;
+}
+
+/* Pill Hover States */
+.pill:hover {
+  background: var(--nav-primary-light);
+  color: var(--nav-primary);
+  transform: translateY(var(--nav-translate-hover)) scale(var(--nav-scale-hover));
+  border-color: var(--nav-border);
+  box-shadow: 0 4px 16px var(--nav-shadow);
+}
+
+/* Active Pill State */
+.pill.is-active {
+  background: linear-gradient(135deg, var(--nav-primary) 0%, var(--nav-primary-hover) 100%);
+  color: var(--nav-text-inverse);
+  box-shadow: 0 6px 20px var(--nav-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.pill.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: var(--nav-primary);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--nav-primary);
+}
+
+/* GSAP Animation Elements */
+.pill .hover-circle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--nav-primary) 0%, var(--nav-accent) 100%);
+  z-index: 1;
+  pointer-events: none;
+  will-change: transform;
+  opacity: 0.8;
+}
+
+.pill .label-stack {
+  position: relative;
+  z-index: 2;
+  /* Make the label stack fill the pill and center its children vertically */
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.pill .pill-label {
+  position: relative;
+  z-index: 2;
+  display: block;
+  will-change: transform;
+  line-height: 1;
+}
+
+.pill .pill-label-hover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--nav-text-inverse);
+  z-index: 3;
+  display: block;
+  will-change: transform, opacity;
+  line-height: 1;
+}
+
+/* Mobile Responsive Excellence */
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+/* Professional Mobile Menu Button */
+.mobile-menu-button {
+  width: var(--nav-logo-size);
+  height: var(--nav-logo-size);
+  background: var(--nav-surface);
+  border: 1px solid var(--nav-border);
+  border-radius: 50%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: var(--nav-transition);
+  box-shadow: 0 4px 16px var(--nav-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.mobile-menu-button:hover {
+  background: var(--nav-primary-light);
+  border-color: var(--nav-primary);
+  transform: scale(1.05);
+}
+
+.mobile-menu-button.active {
+  background: var(--nav-primary);
+}
+
+.mobile-menu-button .hamburger-line {
+  width: 20px;
+  height: 2px;
+  background: var(--nav-text-primary);
+  transition: var(--nav-transition);
+  border-radius: 1px;
+}
+
+.mobile-menu-button.active .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.mobile-menu-button.active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-button.active .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+.mobile-menu-button {
+  width: var(--nav-logo-size);
+  height: var(--nav-logo-size);
+  background: var(--nav-surface);
+  border: 1px solid var(--nav-border);
+  border-radius: 50%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: var(--nav-transition);
+  box-shadow: 0 6px 24px var(--nav-shadow);
+  z-index: 1001;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.mobile-menu-button:hover {
+  transform: scale(1.08);
+  background: var(--nav-primary-light);
+  border-color: var(--nav-primary);
+  box-shadow: 0 8px 32px var(--nav-shadow-hover);
+}
+
+.mobile-menu-button.active {
+  background: var(--nav-primary);
+}
+
+.mobile-menu-button .hamburger-line {
+  width: 20px;
+  height: 2px;
+  background: var(--nav-text-primary);
+  transition: var(--nav-transition);
+  border-radius: 1px;
+}
+
+.mobile-menu-button.active .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.mobile-menu-button.active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-button.active .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+.mobile-menu-button:active {
+  transform: scale(0.95);
+}
+
+.hamburger-line {
+  width: 18px;
+  height: 2px;
+  background: var(--nav-primary);
+  border-radius: 1px;
+  transition: var(--nav-transition);
+  transform-origin: center;
+}
+
+.mobile-menu-button.active .hamburger-line:first-child {
+  transform: rotate(45deg) translateY(6px);
+}
+
+.mobile-menu-button.active .hamburger-line:last-child {
+  transform: rotate(-45deg) translateY(-6px);
+}
+
+/* Elegant Mobile Menu Popover */
+.mobile-menu-popover {
+  position: fixed;
+  top: calc(var(--nav-height) + 1rem);
+  left: 1rem;
+  right: 1rem;
+  background: var(--nav-surface);
+  border: 1px solid var(--nav-border);
+  border-radius: var(--nav-border-radius);
+  box-shadow: 0 16px 64px var(--nav-shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px) scale(0.95);
+  transition: var(--nav-transition);
+  max-height: calc(100vh - var(--nav-height) - 2rem);
+  overflow-y: auto;
+}
+
+.mobile-menu-popover.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.mobile-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-menu-link {
+  display: block;
+  padding: 1rem 1.5rem;
+  color: var(--nav-text-primary);
+  background: transparent;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: calc(var(--nav-border-radius) / 2);
+  transition: var(--nav-transition-fast);
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobile-menu-link:hover {
+  background: var(--nav-primary-light);
+  color: var(--nav-primary);
+  border-color: var(--nav-border);
+  transform: translateX(4px);
+}
+
+.mobile-menu-link.is-active {
+  background: linear-gradient(135deg, var(--nav-primary) 0%, var(--nav-primary-hover) 100%);
+  color: var(--nav-text-inverse);
+  box-shadow: 0 4px 16px var(--nav-shadow);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: block !important;
+  }
+
+  .mobile-menu-button {
+    display: flex !important;
+  }
+
+  .pill-nav {
+    padding: 0 1rem;
+  }
+
+  .pill-logo {
+    left: 0;
+    width: 72px;
+    height: 72px;
+  }
+
+  /* Center zone takes full width on mobile since nav items are hidden */
+  .pill-nav-center {
+    flex: 1;
+  }
+
+  .pill-nav-right {
+    width: 72px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pill-nav {
+    padding: 0 0.75rem;
+  }
+
+  .pill-logo {
+    left: 0;
+    width: 64px;
+    height: 64px;
+  }
+
+  .pill-nav-right {
+    width: 64px;
+  }
+
+  .mobile-menu-button {
+    width: 64px;
+    height: 64px;
+  }
+
+  .mobile-menu-popover {
+    left: 0.5rem;
+    right: 0.5rem;
+  }
+}
+
+/* Accessibility Excellence */
+.pill:focus,
+.mobile-menu-link:focus,
+.mobile-menu-button:focus,
+.pill-logo:focus {
+  outline: none;
+}
+
+.pill:focus-visible,
+.mobile-menu-link:focus-visible,
+.mobile-menu-button:focus-visible,
+.pill-logo:focus-visible {
+  outline: none;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .pill-nav-container {
+    border-bottom-width: 2px;
+    background: #ffffff;
+  }
+
+  .pill {
+    border-width: 2px;
+  }
+
+  /* Logo remains clean without border */
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .pill,
+  .pill-logo,
+  .hamburger-line,
+  .mobile-menu-link,
+  .mobile-menu-button,
+  .mobile-menu-popover {
+    transition: none !important;
+  }
+}
+
+/* Performance Optimizations */
+.pill {
+  will-change: transform, background-color, box-shadow;
+}
+
+.hover-circle {
+  will-change: transform, opacity;
+}
+
+.pill-label,
+.pill-label-hover {
+  will-change: transform, opacity;
+}
+
+.mobile-menu-popover {
+  will-change: transform, opacity;
+}
+
+/* Dark Mode Support (Future-proofing) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nav-surface: rgba(26, 32, 44, 0.95);
+    --nav-surface-glass: rgba(26, 32, 44, 0.85);
+    --nav-text-primary: #E2E8F0;
+    --nav-border: rgba(0, 129, 112, 0.3);
+    --nav-shadow: rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .pill-nav-container {
+    display: none;
+  }
+}
+
+/* Page Content Spacing */
+body {
+  padding-top: var(--nav-height);
+}
+
+/* Smooth page transitions */
+.page-content {
+  padding-top: 2rem;
+  transition: var(--nav-transition);
+}
