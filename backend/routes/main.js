@@ -36,6 +36,9 @@ router.route('/prescriptions')
 // --- Queue Routes ---
 router.get('/queue/doctor', authenticateJWT, authorizeRoles('doctor'), getDoctorQueue);
 
+// --- Doctor attended patients ---
+router.get('/doctor/attended-patients', authenticateJWT, authorizeRoles('doctor'), getAttendedPatients);
+
 router.get('/appointments/:id', authenticateJWT, getAppointmentById);
 
 // --- Debug Routes ---

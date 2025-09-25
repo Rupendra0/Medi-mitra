@@ -3,7 +3,7 @@ export const fetchAttendedPatients = createAsyncThunk(
   'dashboard/fetchAttendedPatients',
   async () => {
     const response = await api.apiFetch('/api/doctor/attended-patients');
-    return response.data || [];
+    return response.data?.data || [];
   }
 );
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';

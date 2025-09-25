@@ -95,7 +95,7 @@ export default function PatientDashboard() {
       {/* This block will now display the incoming call notification */}
       {incomingCall && (
         <div className="incoming-call-card">
-          <h4>{t('incomingCall')} {incomingCall.fromUserName}</h4>
+          <h4>{t('incomingCall')} {incomingCall.fromUserName || 'Doctor'}</h4>
           <div className="actions">
             <button className="btn btn-secondary" onClick={declineCall}>{t('decline')}</button>
             <button className="btn btn-primary" onClick={acceptCall}>{t('accept')}</button>

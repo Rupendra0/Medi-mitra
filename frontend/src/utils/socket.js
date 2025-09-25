@@ -4,14 +4,9 @@ import { io } from 'socket.io-client';
 let socket = null;
 
 export function getSocket() {
-  if (socket && socket.connected) return socket;
-  
-  // Disconnect existing socket if it exists but is not connected
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
-  
+  // Reuse existing instance to avoid multiple parallel handshakes
+  if (socket) return socket;
+
   const url = import.meta.env.VITE_API_URL;
   const authToken = typeof window !== 'undefined' ? window.__AUTH_TOKEN : undefined;
   console.log("🔌 Creating socket connection:", {
@@ -23,7 +18,7 @@ export function getSocket() {
     withCredentials: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
-    transports: ["websocket"],
+    transports: ["websocket", "polling"],
     ...(authToken ? { auth: { token: authToken } } : {}),
   });
   socket.on('connect', () => console.log('✅ Shared socket connected:', socket.id));
