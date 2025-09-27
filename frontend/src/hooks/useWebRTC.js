@@ -17,6 +17,7 @@ export default function useWebRTC(user) {
   const processedCandidates = useRef(new Set()); // Track processed ICE candidates
   const callSessionRef = useRef(null); // Track active call sessions
   const retryCountRef = useRef(0); // Track connection retry attempts
+  const isRetryingRef = useRef(false); // Prevent multiple simultaneous retries
 
   // Helper function to reset peer connection completely
   const resetPeerConnection = () => {
@@ -134,22 +135,28 @@ export default function useWebRTC(user) {
         setConnectionQuality(iceState === 'completed' ? 'excellent' : 'good');
         setCallState('active');
         retryCountRef.current = 0; // Reset retry counter on success
+        isRetryingRef.current = false; // Reset retry flag on success
         if (connectionTimeout) clearTimeout(connectionTimeout);
       } else if (iceState === 'checking') {
         console.log("🔍 Checking connectivity (TURN servers will help if needed)...");
         setConnectionQuality('fair');
         // Set a shorter timeout for quicker retry
         connectionTimeout = setTimeout(() => {
-          if (pc.iceConnectionState === 'checking') {
+          if (pc.iceConnectionState === 'checking' || pc.iceConnectionState === 'connecting') {
             console.log("⏱️ Connection timeout - forcing retry...");
-            // Reset state and create fresh connection for retry
-            if (user?.role === 'doctor') {
-              setCallState('idle');
+            // Prevent multiple simultaneous retries
+            if (user?.role === 'doctor' && !isRetryingRef.current) {
+              isRetryingRef.current = true;
+              console.log("🔄 Resetting call state and creating fresh connection");
               resetPeerConnection();
-              setTimeout(() => startCall(remoteUserIdRef.current), 1000);
+              setCallState('idle');
+              setTimeout(() => {
+                startCall(remoteUserIdRef.current);
+                isRetryingRef.current = false; // Reset retry flag after attempt
+              }, 1000);
             }
           }
-        }, 8000); // Shorter timeout for quicker retry
+        }, 15000); // Even longer timeout - connection is progressing well
       } else if (iceState === 'failed') {
         console.log("❌ Connection failed");
         if (connectionTimeout) clearTimeout(connectionTimeout);
@@ -157,12 +164,16 @@ export default function useWebRTC(user) {
         retryCountRef.current += 1;
         console.log(`🔄 Attempting reconnection (attempt ${retryCountRef.current}/3)...`);
         
-        if (retryCountRef.current <= 3) {
+        if (retryCountRef.current <= 3 && !isRetryingRef.current) {
           setTimeout(() => {
-            if (user?.role === 'doctor' && callState !== 'active') {
+            if (user?.role === 'doctor' && callState !== 'active' && !isRetryingRef.current) {
+              isRetryingRef.current = true;
               setCallState('idle');
               resetPeerConnection();
-              startCall(remoteUserIdRef.current);
+              setTimeout(() => {
+                startCall(remoteUserIdRef.current);
+                isRetryingRef.current = false;
+              }, 500);
             }
           }, 1000 * retryCountRef.current); // Progressive delay
         } else {
