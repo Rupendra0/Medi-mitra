@@ -4,11 +4,19 @@ import { getSocket } from "../utils/socket";
 
 // Configuration flag for demo mode - set to true for classical STUN-only P2P
 const CLASSIC_P2P_MODE = true;
+const ADD_TURN_BACKUP = false; // Set to true if pure STUN fails in your network
 
 // Classical STUN-only configuration for reliable peer-to-peer demo
 const CLASSIC_ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" }
+];
+
+// Classical + single TURN backup (if needed for NAT traversal)
+const CLASSIC_WITH_TURN = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "turn:relay1.expressturn.com:3478", username: "efCZWX3MTI071W2V6N", credential: "mGWa8dVKpR4FgpE" }
 ];
 
 export default function useWebRTC(user) {
@@ -127,7 +135,7 @@ export default function useWebRTC(user) {
   // Helper function to create peer connection with enhanced configuration
   const createPeerConnection = () => {
     // Use classical STUN-only mode for reliable demo, or full config if disabled
-    const iceServers = CLASSIC_P2P_MODE ? CLASSIC_ICE_SERVERS : [
+    const iceServers = CLASSIC_P2P_MODE ? (ADD_TURN_BACKUP ? CLASSIC_WITH_TURN : CLASSIC_ICE_SERVERS) : [
         // Primary STUN servers (most reliable, unlimited free)
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
@@ -351,15 +359,19 @@ export default function useWebRTC(user) {
     pc.onicecandidate = (ev) => { if (ev.candidate && remoteUserIdRef.current) socketRef.current.emit('webrtc:ice-candidate', { candidate: ev.candidate, to: remoteUserIdRef.current }); };
     pc.oniceconnectionstatechange = () => {
       const s = pc.iceConnectionState;
-      console.log('🧊 ICE state (stage', iceStageRef.current, '):', s);
-      if (s === 'connected' || s === 'completed') { clearDiagnostics(); setConnectionQuality(s==='completed'?'excellent':'good'); setCallState('active'); }
+      console.log(`🧊 ICE state ${CLASSIC_P2P_MODE ? '(classical)' : '(stage ' + iceStageRef.current + ')'}:`, s);
+      if (s === 'connected' || s === 'completed') { 
+        if (!CLASSIC_P2P_MODE) clearDiagnostics(); 
+        setConnectionQuality(s==='completed'?'excellent':'good'); 
+        setCallState('active'); 
+      }
     };
   };
 
   const buildPeerConnectionForStage = (stage) => {
     // Use classical mode configuration if enabled
-    const servers = CLASSIC_P2P_MODE ? CLASSIC_ICE_SERVERS : (ICE_STAGES[stage] || ICE_STAGES[ICE_STAGES.length-1]);
-    console.log(`🧊 ${CLASSIC_P2P_MODE ? 'Classical' : 'Staged'} PC - ${CLASSIC_P2P_MODE ? 'STUN-only' : 'stage ' + stage}:`, servers.map(s=>s.urls));
+    const servers = CLASSIC_P2P_MODE ? (ADD_TURN_BACKUP ? CLASSIC_WITH_TURN : CLASSIC_ICE_SERVERS) : (ICE_STAGES[stage] || ICE_STAGES[ICE_STAGES.length-1]);
+    console.log(`🧊 ${CLASSIC_P2P_MODE ? 'Classical' : 'Staged'} PC - ${CLASSIC_P2P_MODE ? (ADD_TURN_BACKUP ? 'STUN+TURN' : 'STUN-only') : 'stage ' + stage}:`, servers.map(s=>s.urls));
     
     const pc = new RTCPeerConnection({
       iceServers: servers,
