@@ -122,8 +122,8 @@ export default function CallPage() {
         </div>
       </div>
 
-      {/* Main Video Container - Account for fixed bottom bar */}
-      <div className="flex-1 relative w-full overflow-hidden" style={{paddingBottom: '100px'}}>
+      {/* Main Video Container - Account for larger bottom bar */}
+      <div className="flex-1 relative w-full overflow-hidden" style={{paddingBottom: '140px'}}>
         {/* Remote Video (Main/Large) */}
         <div className="relative w-full h-full">
           <video
@@ -173,8 +173,8 @@ export default function CallPage() {
           )}
         </div>
 
-        {/* Local Video (Picture-in-Picture) - Responsive */}
-        <div className="absolute top-2 sm:top-4 right-2 sm:right-4 w-32 h-24 sm:w-48 sm:h-36 md:w-64 md:h-48 z-20">
+        {/* Local Video (Picture-in-Picture) - Larger for tablets */}
+        <div className="absolute top-4 sm:top-6 right-4 sm:right-6 w-40 h-30 sm:w-60 sm:h-45 md:w-80 md:h-60 lg:w-96 lg:h-72 z-20">
           <div className="relative w-full h-full rounded-lg sm:rounded-xl overflow-hidden shadow-2xl border border-white/20 sm:border-2">
             <video
               ref={localVideoRef}
@@ -202,48 +202,65 @@ export default function CallPage() {
         </div>
       </div>
 
-      {/* Bottom Control Bar - Fixed height, responsive, always visible */}
-      <div className="flex-none w-full bg-black/40 backdrop-blur-xl border-t border-white/10 z-40 min-h-[80px] flex items-center" style={{
+      {/* Bottom Control Bar - Extra large for tablets */}
+      <div className="flex-none w-full bg-black/50 backdrop-blur-xl border-t-2 border-white/20 z-40 min-h-[120px] md:min-h-[140px] flex items-center" style={{
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 1000
       }}>
-        <div className="flex items-center justify-center px-3 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 w-full">
-          <div className="flex items-center justify-center space-x-3 sm:space-x-4 md:space-x-6 max-w-full overflow-x-auto">
+        <div className="flex items-center justify-center px-4 sm:px-8 md:px-12 py-6 sm:py-8 md:py-10 w-full">
+          <div className="flex items-center justify-center space-x-4 sm:space-x-6 md:space-x-8 lg:space-x-12 max-w-full overflow-x-auto">
             
-            {/* Debug Info */}
-            <div className="bg-red-600 text-white p-2 rounded text-xs">
-              Role: {user?.role || 'none'} | State: {callState} | PatientId: {resolvedPatientId ? 'yes' : 'no'}
-            </div>
-
-            {/* Doctor Start Call Button - ALWAYS VISIBLE FOR DOCTORS */}
-            {user?.role === "doctor" && (
+            {/* DOCTOR START CALL BUTTON - LARGE SIZE FOR TABLETS */}
+            {user?.role === "doctor" && callState !== 'active' && (
               <button
                 onClick={handleDoctorStart}
                 disabled={!resolvedPatientId}
-                className="flex items-center space-x-2 px-4 sm:px-6 py-3 sm:py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-full transition-all duration-200 shadow-2xl text-sm sm:text-base whitespace-nowrap border-2 border-green-400"
+                className="flex items-center justify-center space-x-3 px-6 md:px-8 lg:px-12 py-4 md:py-6 lg:py-8 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-2xl md:rounded-3xl transition-all duration-200 shadow-2xl text-base md:text-lg lg:text-xl font-bold border-4 border-green-400"
                 title={!resolvedPatientId ? "Loading patient info..." : "Start video call"}
-                style={{minHeight: '48px', minWidth: '120px'}}
+                style={{
+                  minHeight: '70px',
+                  minWidth: '200px',
+                  fontSize: '18px'
+                }}
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                 </svg>
-                <span className="text-white font-medium hidden sm:inline">
-                  {!resolvedPatientId ? 'Loading...' : 'Start Call'}
-                </span>
-                <span className="text-white font-medium sm:hidden">
-                  {!resolvedPatientId ? 'Loading...' : 'Start'}
+                <span className="text-white font-bold">
+                  {!resolvedPatientId ? 'Loading Patient...' : '📞 START VIDEO CALL'}
                 </span>
               </button>
             )}
 
-            {/* Patient Info */}
+            {/* PATIENT WAITING MESSAGE - LARGE AND CLEAR */}
             {user?.role === "patient" && (
-              <div className="bg-blue-600 text-white px-4 py-2 rounded">
-                Patient - Waiting for doctor to start call
+              <div className="flex items-center justify-center space-x-3 px-6 md:px-8 py-4 md:py-6 bg-blue-600/90 backdrop-blur-sm border-2 border-blue-400 rounded-2xl md:rounded-3xl shadow-2xl">
+                <div className="w-4 h-4 md:w-6 md:h-6 bg-blue-300 rounded-full animate-pulse"></div>
+                <span className="text-white text-base md:text-lg lg:text-xl font-bold">
+                  👩‍⚕️ Waiting for Doctor to Start Call
+                </span>
               </div>
+            )}
+
+            {/* ACTIVE CALL END BUTTON - LARGE SIZE */}
+            {callState === 'active' && (
+              <button
+                onClick={endCall}
+                className="flex items-center justify-center space-x-3 px-6 md:px-8 lg:px-12 py-4 md:py-6 lg:py-8 bg-red-600 hover:bg-red-700 rounded-2xl md:rounded-3xl transition-all duration-200 shadow-2xl text-base md:text-lg lg:text-xl font-bold border-4 border-red-400"
+                style={{
+                  minHeight: '70px',
+                  minWidth: '200px',
+                  fontSize: '18px'
+                }}
+              >
+                <svg className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                </svg>
+                <span className="text-white font-bold">🔴 END CALL</span>
+              </button>
             )}
 
             {/* Patient Auto-Answer Indicator */}
@@ -254,44 +271,20 @@ export default function CallPage() {
               </div>
             )}
 
-            {/* Test Button - Always visible for debugging */}
-            <button className="flex items-center space-x-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-full shadow-2xl border-2 border-blue-400" style={{minHeight: '48px'}}>
-              <span className="text-white font-medium">Test Button</span>
-            </button>
-
-            {/* Active Call Controls */}
+            {/* Active Call Controls - Larger Secondary Buttons */}
             {callState === 'active' && (
               <>
-                {/* Mute Button */}
-                <button className="p-3 sm:p-4 bg-gray-700/50 hover:bg-gray-600/50 rounded-full transition-all duration-200 border border-gray-600 shadow-lg">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                {/* Mute Button - Larger for tablets */}
+                <button className="p-4 md:p-6 bg-gray-700/50 hover:bg-gray-600/50 rounded-2xl transition-all duration-200 border-2 border-gray-600 shadow-lg" style={{minHeight: '60px', minWidth: '60px'}}>
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
                   </svg>
                 </button>
 
-                {/* Video Button */}
-                <button className="p-3 sm:p-4 bg-gray-700/50 hover:bg-gray-600/50 rounded-full transition-all duration-200 border border-gray-600 shadow-lg">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                {/* Video Button - Larger for tablets */}
+                <button className="p-4 md:p-6 bg-gray-700/50 hover:bg-gray-600/50 rounded-2xl transition-all duration-200 border-2 border-gray-600 shadow-lg" style={{minHeight: '60px', minWidth: '60px'}}>
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                  </svg>
-                </button>
-
-                {/* End Call Button */}
-                <button
-                  onClick={endCall}
-                  className="flex items-center space-x-1 sm:space-x-2 px-4 sm:px-6 py-3 sm:py-4 bg-red-600 hover:bg-red-700 rounded-full transition-all duration-200 shadow-2xl border-2 border-red-400"
-                  style={{minHeight: '48px'}}
-                >
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                  </svg>
-                  <span className="text-white font-medium text-sm sm:text-base">End Call</span>
-                </button>
-
-                {/* Settings Button - Hidden on mobile to save space */}
-                <button className="hidden sm:flex p-3 sm:p-4 bg-gray-700/50 hover:bg-gray-600/50 rounded-full transition-all duration-200 border border-gray-600 shadow-lg">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                   </svg>
                 </button>
               </>
