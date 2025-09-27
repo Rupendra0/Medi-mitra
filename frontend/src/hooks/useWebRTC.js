@@ -24,22 +24,30 @@ export default function useWebRTC(user) {
         // Primary STUN servers (most reliable)
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
         
         // Primary TURN servers (working well based on logs)
         {
-          urls: "turn:openrelay.metered.ca:80",
+          urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:80?transport=tcp"],
           username: "openrelayproject",
           credential: "openrelayproject"
         },
         {
-          urls: "turn:openrelay.metered.ca:443",
+          urls: ["turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"],
           username: "openrelayproject", 
           credential: "openrelayproject"
         },
         
+        // Additional reliable TURN servers
+        {
+          urls: ["turn:relay1.expressturn.com:3478", "turn:relay1.expressturn.com:3478?transport=tcp"],
+          username: "efGYBOFVAIH72FAMXX",
+          credential: "Q21GhNwhZcMNd6r3"
+        },
+        
         // Backup TURN servers
         {
-          urls: "turn:numb.viagenie.ca:3478",
+          urls: ["turn:numb.viagenie.ca:3478", "turn:numb.viagenie.ca:3478?transport=tcp"],
           username: "webrtc@live.com",
           credential: "muazkh"
         }
@@ -89,18 +97,16 @@ export default function useWebRTC(user) {
           }
         }, 15000); // Increased timeout for TURN relay
       } else if (iceState === 'failed') {
-        console.log("❌ Connection failed - attempting ICE restart with TURN servers...");
+        console.log("❌ Connection failed");
         if (connectionTimeout) clearTimeout(connectionTimeout);
         
-        // Attempt ICE restart for better connectivity
-        if (pc.restartIce && typeof pc.restartIce === 'function') {
-          try {
-            pc.restartIce();
-            console.log("🔄 ICE restart initiated - trying different TURN paths");
-          } catch (err) {
-            console.error("❌ ICE restart failed:", err);
+        // Immediate retry with new peer connection
+        console.log("🔄 Attempting automatic reconnection...");
+        setTimeout(() => {
+          if (userRole === 'doctor' && callState !== 'active') {
+            handleDoctorStart();
           }
-        }
+        }, 2000); // Quick retry
       } else if (iceState === 'disconnected') {
         console.log("⚠️ Connection disconnected - will attempt recovery");
         

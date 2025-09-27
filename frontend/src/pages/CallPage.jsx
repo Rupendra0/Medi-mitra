@@ -149,6 +149,21 @@ export default function CallPage() {
                   {callState === 'answering' && 'Setting up video and audio...'}
                   {callState === 'ended' && 'Thank you for using Medi-Mitra'}
                 </p>
+                
+                {/* Connection Quality Indicator */}
+                {connectionQuality && callState !== 'ended' && (
+                  <div className="mt-3 flex items-center justify-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      connectionQuality === 'excellent' ? 'bg-green-500' :
+                      connectionQuality === 'good' ? 'bg-yellow-500' :
+                      connectionQuality === 'fair' ? 'bg-orange-500' :
+                      'bg-red-500'
+                    }`}></div>
+                    <span className="text-xs text-gray-400">
+                      Connection: {connectionQuality}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -183,16 +198,16 @@ export default function CallPage() {
         </div>
       </div>
 
-      {/* Bottom Control Bar - Extra large for tablets */}
-      <div className="flex-none w-full bg-black/50 backdrop-blur-xl border-t-2 border-white/20 z-40 min-h-[120px] md:min-h-[140px] flex items-center" style={{
+      {/* Bottom Control Bar - Compact size */}
+      <div className="flex-none w-full bg-black/50 backdrop-blur-xl border-t border-white/20 z-40 min-h-[80px] flex items-center" style={{
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 1000
       }}>
-        <div className="flex items-center justify-center px-4 sm:px-8 md:px-12 py-6 sm:py-8 md:py-10 w-full">
-          <div className="flex items-center justify-center space-x-4 sm:space-x-6 md:space-x-8 lg:space-x-12 max-w-full overflow-x-auto">
+        <div className="flex items-center justify-center px-4 py-4 w-full">
+          <div className="flex items-center justify-center space-x-3 max-w-full overflow-x-auto">
             
             {/* Doctor Start Call Button - Smaller for tablets */}
             {user?.role === "doctor" && callState !== 'active' && (
@@ -211,31 +226,26 @@ export default function CallPage() {
               </button>
             )}
 
-            {/* PATIENT WAITING MESSAGE - LARGE AND CLEAR */}
+            {/* Patient Waiting Message - Smaller size */}
             {user?.role === "patient" && (
-              <div className="flex items-center justify-center space-x-3 px-6 md:px-8 py-4 md:py-6 bg-blue-600/90 backdrop-blur-sm border-2 border-blue-400 rounded-2xl md:rounded-3xl shadow-2xl">
-                <div className="w-4 h-4 md:w-6 md:h-6 bg-blue-300 rounded-full animate-pulse"></div>
-                <span className="text-white text-base md:text-lg lg:text-xl font-bold">
-                  👩‍⚕️ Waiting for Doctor to Start Call
+              <div className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600/90 backdrop-blur-sm border border-blue-400 rounded-lg shadow-lg">
+                <div className="w-3 h-3 bg-blue-300 rounded-full animate-pulse"></div>
+                <span className="text-white text-sm font-medium">
+                  Waiting for Doctor
                 </span>
               </div>
             )}
 
-            {/* ACTIVE CALL END BUTTON - LARGE SIZE */}
+            {/* Active Call End Button - Smaller size */}
             {callState === 'active' && (
               <button
                 onClick={endCall}
-                className="flex items-center justify-center space-x-3 px-6 md:px-8 lg:px-12 py-4 md:py-6 lg:py-8 bg-red-600 hover:bg-red-700 rounded-2xl md:rounded-3xl transition-all duration-200 shadow-2xl text-base md:text-lg lg:text-xl font-bold border-4 border-red-400"
-                style={{
-                  minHeight: '70px',
-                  minWidth: '200px',
-                  fontSize: '18px'
-                }}
+                className="flex items-center space-x-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 shadow-lg text-sm font-medium border border-red-400"
               >
-                <svg className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                 </svg>
-                <span className="text-white font-bold">🔴 END CALL</span>
+                <span className="text-white">End Call</span>
               </button>
             )}
 
@@ -247,19 +257,19 @@ export default function CallPage() {
               </div>
             )}
 
-            {/* Active Call Controls - Larger Secondary Buttons */}
+            {/* Active Call Controls - Smaller buttons */}
             {callState === 'active' && (
               <>
-                {/* Mute Button - Larger for tablets */}
-                <button className="p-4 md:p-6 bg-gray-700/50 hover:bg-gray-600/50 rounded-2xl transition-all duration-200 border-2 border-gray-600 shadow-lg" style={{minHeight: '60px', minWidth: '60px'}}>
-                  <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                {/* Mute Button */}
+                <button className="p-2.5 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-all duration-200 border border-gray-600 shadow-lg">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
                   </svg>
                 </button>
 
-                {/* Video Button - Larger for tablets */}
-                <button className="p-4 md:p-6 bg-gray-700/50 hover:bg-gray-600/50 rounded-2xl transition-all duration-200 border-2 border-gray-600 shadow-lg" style={{minHeight: '60px', minWidth: '60px'}}>
-                  <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                {/* Video Button */}
+                <button className="p-2.5 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-all duration-200 border border-gray-600 shadow-lg">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                   </svg>
                 </button>
