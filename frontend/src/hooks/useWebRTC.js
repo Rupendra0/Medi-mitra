@@ -115,8 +115,8 @@ export default function useWebRTC(user) {
           if (pc.iceConnectionState === 'checking') {
             console.log("⏱️ Connection timeout - forcing retry...");
             // Force a retry by triggering failed state
-            if (userRole === 'doctor') {
-              setTimeout(() => handleDoctorStart(), 1000);
+            if (user?.role === 'doctor') {
+              setTimeout(() => startCall(remoteUserIdRef.current), 1000);
             }
           }
         }, 8000); // Shorter timeout for quicker retry
@@ -129,8 +129,8 @@ export default function useWebRTC(user) {
         
         if (retryCountRef.current <= 3) {
           setTimeout(() => {
-            if (userRole === 'doctor' && callState !== 'active') {
-              handleDoctorStart();
+            if (user?.role === 'doctor' && callState !== 'active') {
+              startCall(remoteUserIdRef.current);
             }
           }, 1000 * retryCountRef.current); // Progressive delay
         } else {
@@ -189,58 +189,6 @@ export default function useWebRTC(user) {
       socketRef.current.emit("register", user._id);
       console.log("📝 Registered user with socket:", user._id);
     }
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          // Use only the most reliable servers
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" }
-        ],
-        iceCandidatePoolSize: 0, // Disable pre-gathering to reduce candidate flood
-        iceTransportPolicy: 'all' // Allow both relay and direct connections
-      });
-
-      // Simple connection monitoring
-      pc.onconnectionstatechange = () => {
-        const state = pc.connectionState;
-        if (state === 'connected') {
-          console.log("✅ Call connected successfully");
-        } else if (state === 'failed') {
-          console.log("❌ Connection failed");
-        }
-      };
-
-      let connectionTimeout;
-      pc.oniceconnectionstatechange = () => {
-        const iceState = pc.iceConnectionState;
-        console.log("🧊 ICE Connection state:", iceState);
-        
-        if (iceState === 'connected' || iceState === 'completed') {
-          console.log("✅ WebRTC connected successfully!");
-          if (connectionTimeout) clearTimeout(connectionTimeout);
-        } else if (iceState === 'checking') {
-          // Set a timeout for connection attempts
-          connectionTimeout = setTimeout(() => {
-            if (pc.iceConnectionState === 'checking') {
-              console.log("⏱️ Connection timeout - both peers may be behind NAT");
-            }
-          }, 10000);
-        } else if (iceState === 'failed') {
-          console.log("❌ Connection failed - both peers likely behind NAT/firewall");
-          if (connectionTimeout) clearTimeout(connectionTimeout);
-        }
-      };
-
-      // Simple ICE gathering monitoring
-      pc.onicegatheringstatechange = () => {
-        if (pc.iceGatheringState === 'complete') {
-          console.log("✅ ICE gathering complete");
-        }
-      };
-
-      pc.onicecandidateerror = (event) => {
-        // Simplified error handling - only log critical errors
-        console.log("ℹ️ ICE server issue:", event.url || 'unknown');
-      };
 
     // Create RTCPeerConnection
     pcRef.current = createPeerConnection();
@@ -460,7 +408,22 @@ export default function useWebRTC(user) {
     if (retryCountRef.current >= 2) {
       console.log("🔄 Using simplified connection (STUN only) after failures");
       pcRef.current = createSimplePeerConnection();
-      setupPeerConnectionHandlers(pcRef.current);
+      
+      // Setup handlers for simplified connection
+      pcRef.current.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+      
+      pcRef.current.onicecandidate = (event) => {
+        if (event.candidate && remoteUserIdRef.current) {
+          socketRef.current.emit("webrtc:ice-candidate", {
+            candidate: event.candidate,
+            to: remoteUserIdRef.current,
+          });
+        }
+      };
     }
     
     remoteUserIdRef.current = targetUserId;
