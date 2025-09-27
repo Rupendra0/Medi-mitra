@@ -4,7 +4,7 @@ import { getSocket } from "../utils/socket";
 
 // Configuration flag for demo mode - set to true for classical STUN-only P2P
 const CLASSIC_P2P_MODE = true;
-const ADD_TURN_BACKUP = false; // Set to true if pure STUN fails in your network
+const ADD_TURN_BACKUP = true; // ENABLED: Adding TURN for NAT traversal
 
 // Classical STUN-only configuration for reliable peer-to-peer demo
 const CLASSIC_ICE_SERVERS = [
