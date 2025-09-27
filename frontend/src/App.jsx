@@ -36,7 +36,7 @@ const ProtectedRoute = ({ children, role }) => {
 const Layout = ({ children }) => {
   const location = useLocation();
   const path = location.pathname;
-  const hideNavbarFooter = path === "/login" || path === "/signup" || path.startsWith("/patient") || path.startsWith("/doctor");
+  const hideNavbarFooter = path === "/login" || path === "/signup" || path.startsWith("/patient") || path.startsWith("/doctor") || path.startsWith("/call");
 
   return (
     <div className="min-h-screen flex flex-col">
