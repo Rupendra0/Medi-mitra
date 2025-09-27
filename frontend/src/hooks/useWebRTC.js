@@ -35,20 +35,22 @@ export default function useWebRTC(user) {
     const createPeerConnection = () => {
       const pc = new RTCPeerConnection({
         iceServers: [
-          // Multiple STUN servers for better reliability
+          // Multiple reliable STUN servers
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
           { urls: "stun:stun2.l.google.com:19302" },
           { urls: "stun:stun3.l.google.com:19302" },
           { urls: "stun:stun4.l.google.com:19302" },
+          // Additional reliable STUN servers
+          { urls: "stun:stun.stunprotocol.org:3478" },
+          { urls: "stun:stun.voiparound.com" },
+          { urls: "stun:stun.voipbuster.com" },
           // More reliable TURN servers
           {
             urls: "turn:openrelay.metered.ca:80",
             username: "openrelayproject",
             credential: "openrelayproject"
-          },
-          // Add Twilio's public STUN servers as backup
-          { urls: "stun:global.stun.twilio.com:3478" }
+          }
         ],
         iceCandidatePoolSize: 10 // Pre-gather candidates for faster connection
       });
@@ -73,7 +75,7 @@ export default function useWebRTC(user) {
         console.log("🧊 ICE Connection state:", iceState);
         
         if (iceState === 'connected' || iceState === 'completed') {
-          console.log("✅ ICE connection established - call should be active");
+          console.log("🎉 WebRTC call connected successfully! Audio/video should be flowing.");
         } else if (iceState === 'failed') {
           console.log("❌ ICE connection failed - attempting restart");
           // Add restart logic if needed
@@ -81,6 +83,8 @@ export default function useWebRTC(user) {
           console.log("🔍 ICE checking connectivity...");
         } else if (iceState === 'disconnected') {
           console.log("⚠️ ICE disconnected - may recover automatically");
+        } else if (iceState === 'new') {
+          console.log("🆕 ICE connection initialized");
         }
       };
 
@@ -90,11 +94,14 @@ export default function useWebRTC(user) {
       };
 
       pc.onicecandidateerror = (event) => {
-        // Only log non-TURN errors to reduce noise, as TURN failures are common with free servers
-        if (!event.url || !event.url.includes('turn')) {
-          console.error("❌ ICE candidate error:", event);
-        } else {
+        // Categorize and handle different types of ICE errors
+        if (event.url && event.url.includes('turn')) {
           console.warn("⚠️ TURN server unavailable (using STUN fallback):", event.url);
+        } else if (event.url && event.url.includes('stun')) {
+          // STUN errors are usually network-related and non-critical if we have multiple servers
+          console.log("ℹ️ STUN server issue (backup servers available):", event.url, event.errorText);
+        } else {
+          console.error("❌ ICE candidate error:", event);
         }
       };
 
