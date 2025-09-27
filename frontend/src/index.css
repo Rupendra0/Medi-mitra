@@ -7,6 +7,28 @@ html, body {
   padding: 0;
   box-sizing: border-box;
   height: 100%;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Prevent scrolling on root */
+}
+
+/* Ensure full viewport height for call page */
+.call-page-container {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  html, body {
+    -webkit-text-size-adjust: 100%; /* Prevent zoom on iOS */
+    touch-action: manipulation; /* Improve touch responsiveness */
+  }
 }
 :root {
   /* Dark Green Emphasis Palette */

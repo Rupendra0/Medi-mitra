@@ -28,10 +28,12 @@ export default function CallPage() {
   const [dragging, setDragging] = useState(false);
 
   const handleDoctorStart = () => {
-    if (user?.role === 'doctor' && resolvedPatientId) {
+    if (user?.role === 'doctor' && resolvedPatientId && isValidMongoId(resolvedPatientId)) {
       startCall(resolvedPatientId);
     }
   };
+
+  function isValidMongoId(id){ return /^[a-f0-9]{24}$/i.test(id); }
 
   // Lock page scroll while on call page (prevent background scroll / bounce)
   useEffect(() => {
@@ -188,7 +190,11 @@ export default function CallPage() {
       {/* Control bar */}
       <div className="call-control-bar">
         {user?.role === 'doctor' && callState === 'idle' && (
-          <button className="control-btn-neo" onClick={handleDoctorStart} title="Start Call">📞</button>
+          isValidMongoId(resolvedPatientId) ? (
+            <button className="control-btn-neo" onClick={handleDoctorStart} title="Start Call">📞</button>
+          ) : (
+            <div style={{color:'#ffbf47', fontSize:12, maxWidth:160, textAlign:'center'}}>Invalid or missing patientId param</div>
+          )
         )}
         {callState === 'ringing' && user?.role === 'patient' && (
           <>

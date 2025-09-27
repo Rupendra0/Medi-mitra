@@ -5,6 +5,7 @@ import Appointment from "../models/Appointment.js";
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 export default function initSocket(io) {
+  // Authentication middleware – required for call signaling
   io.use(async (socket, next) => {
     try {
       const tokenFromAuth = socket.handshake.auth?.token;
@@ -16,17 +17,17 @@ export default function initSocket(io) {
         : null;
 
       const token = tokenFromAuth || tokenFromCookie || tokenFromHeader;
-      if (!token) return next();
+      if (!token) return next(); // allow unauthenticated for non-call features if desired
 
       const decoded = jwt.verify(token, JWT_SECRET);
       const user = await User.findById(decoded.id).select("_id role name");
-
       if (user) {
         socket.data.user = { id: user._id.toString(), role: user.role, name: user.name };
         socket.join(user._id.toString());
       }
       next();
-    } catch {
+    } catch (err) {
+      console.warn("Socket auth failed", err?.message);
       next();
     }
   });
@@ -35,77 +36,108 @@ export default function initSocket(io) {
     // =========================
     // Minimal Call Signaling (new)
     // =========================
-    // In-memory call registry: NOT for production clustering (no Redis) – simple & volatile
-    // Structure: callId -> { callerId, calleeId, status: 'request'|'accepted'|'ended' }
+    // In-memory call registry: NOT for clustering – upgrade with Redis adapter for multi-instance.
+    // Structure: callId -> { callerId, calleeId, status, createdAt, acceptedAt?, ringTimer }
     if (!io.activeCalls) io.activeCalls = new Map();
 
-    function safeRelay(toUserId, event, payload) {
-      if (!toUserId) return;
-      io.to(toUserId).emit(event, payload);
+    const RING_TIMEOUT_MS = parseInt(process.env.CALL_RING_TIMEOUT_MS || '45000', 10);
+
+    function now() { return Date.now(); }
+    function safeRelay(toUserId, event, payload) { if (toUserId) io.to(toUserId).emit(event, payload); }
+    function isValidId(id) { return typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id); }
+
+    function endCallServer(callId, reason = 'ended', initiatorUserId = null) {
+      const meta = io.activeCalls.get(callId);
+      if (!meta) return;
+      if (meta.ringTimer) clearTimeout(meta.ringTimer);
+      const participants = [meta.callerId, meta.calleeId];
+      participants.forEach(p => safeRelay(p, 'call:end', { callId, reason }));
+      io.activeCalls.delete(callId);
+      console.log(`📞 [CALL END] callId=${callId} reason=${reason} initiator=${initiatorUserId || 'server'} durationMs=${meta.acceptedAt ? (now()-meta.acceptedAt) : 0}`);
     }
 
+    // ============ CALL REQUEST ============
     socket.on('call:request', ({ callId, toUserId, fromName }) => {
       const fromUserId = socket.data.user?.id;
-      if (!fromUserId || !toUserId || !callId) return;
-      // Busy check: if callee already in a call (request or accepted)
-      for (const [cid, meta] of io.activeCalls.entries()) {
-        if (meta.calleeId === toUserId && meta.status !== 'ended') {
+      if (!fromUserId) return; // unauthenticated – ignore
+      if (!callId || !toUserId) return;
+      if (!isValidId(toUserId) || !isValidId(fromUserId)) return;
+
+      // Prevent caller starting multiple concurrent calls
+      for (const [, meta] of io.activeCalls.entries()) {
+        if ((meta.callerId === fromUserId || meta.calleeId === fromUserId) && meta.status !== 'ended') {
           safeRelay(fromUserId, 'call:busy', { callId });
           return;
         }
       }
-      io.activeCalls.set(callId, { callerId: fromUserId, calleeId: toUserId, status: 'request' });
+      // Busy check: callee engaged
+      for (const [, meta] of io.activeCalls.entries()) {
+        if ((meta.callerId === toUserId || meta.calleeId === toUserId) && meta.status !== 'ended') {
+          safeRelay(fromUserId, 'call:busy', { callId });
+          return;
+        }
+      }
+      const meta = { callerId: fromUserId, calleeId: toUserId, status: 'request', createdAt: now(), acceptedAt: null, ringTimer: null };
+      // Ring timeout
+      meta.ringTimer = setTimeout(() => {
+        if (io.activeCalls.get(callId)?.status === 'request') {
+          endCallServer(callId, 'timeout');
+        }
+      }, RING_TIMEOUT_MS);
+      io.activeCalls.set(callId, meta);
+      console.log(`📞 [CALL REQUEST] callId=${callId} from=${fromUserId} to=${toUserId}`);
       safeRelay(toUserId, 'call:request', { callId, fromUserId, fromName: fromName || socket.data.user?.name || 'Caller' });
     });
 
     socket.on('call:cancel', ({ callId }) => {
       const meta = io.activeCalls.get(callId);
-      if (!meta) return; // nothing to cancel
+      if (!meta) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.callerId) return; // only caller cancels
-      safeRelay(meta.calleeId, 'call:cancel', { callId });
-      io.activeCalls.delete(callId);
+      if (fromUserId !== meta.callerId) return;
+      endCallServer(callId, 'cancelled', fromUserId);
     });
 
     socket.on('call:reject', ({ callId }) => {
       const meta = io.activeCalls.get(callId);
       if (!meta) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.calleeId) return; // only callee rejects
-      safeRelay(meta.callerId, 'call:reject', { callId });
-      io.activeCalls.delete(callId);
+      if (fromUserId !== meta.calleeId) return;
+      endCallServer(callId, 'rejected', fromUserId);
     });
 
     socket.on('call:accept', ({ callId }) => {
       const meta = io.activeCalls.get(callId);
       if (!meta) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.calleeId) return; // only callee accepts
+      if (fromUserId !== meta.calleeId) return;
       meta.status = 'accepted';
+      meta.acceptedAt = now();
+      if (meta.ringTimer) { clearTimeout(meta.ringTimer); meta.ringTimer = null; }
       safeRelay(meta.callerId, 'call:accept', { callId });
+      console.log(`📞 [CALL ACCEPT] callId=${callId} callee=${fromUserId}`);
     });
 
     socket.on('call:offer', ({ callId, sdp }) => {
       const meta = io.activeCalls.get(callId);
-      if (!meta || meta.status !== 'accepted') return;
+      if (!meta || meta.status !== 'accepted' || !sdp) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.callerId) return; // only caller sends offer
+      if (fromUserId !== meta.callerId) return;
       safeRelay(meta.calleeId, 'call:offer', { callId, sdp });
     });
 
     socket.on('call:answer', ({ callId, sdp }) => {
       const meta = io.activeCalls.get(callId);
-      if (!meta || meta.status !== 'accepted') return;
+      if (!meta || meta.status !== 'accepted' || !sdp) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.calleeId) return; // only callee answers
+      if (fromUserId !== meta.calleeId) return;
       safeRelay(meta.callerId, 'call:answer', { callId, sdp });
     });
 
     socket.on('call:ice', ({ callId, candidate }) => {
       const meta = io.activeCalls.get(callId);
-      if (!meta) return;
+      if (!meta || !candidate) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.callerId && fromUserId !== meta.calleeId) return; // only participants
+      if (fromUserId !== meta.callerId && fromUserId !== meta.calleeId) return;
       const target = fromUserId === meta.callerId ? meta.calleeId : meta.callerId;
       safeRelay(target, 'call:ice', { callId, candidate });
     });
@@ -114,21 +146,16 @@ export default function initSocket(io) {
       const meta = io.activeCalls.get(callId);
       if (!meta) return;
       const fromUserId = socket.data.user?.id;
-      if (fromUserId !== meta.callerId && fromUserId !== meta.calleeId) return; // only participants
-      const other = fromUserId === meta.callerId ? meta.calleeId : meta.callerId;
-      safeRelay(other, 'call:end', { callId, reason: reason || 'ended' });
-      io.activeCalls.delete(callId);
+      if (fromUserId !== meta.callerId && fromUserId !== meta.calleeId) return;
+      endCallServer(callId, reason || 'ended', fromUserId);
     });
 
     socket.on('disconnect', () => {
-      // Clean up any calls this user was part of
       const userId = socket.data.user?.id;
       if (!userId || !io.activeCalls?.size) return;
-      for (const [callId, meta] of io.activeCalls.entries()) {
+      for (const [callId, meta] of [...io.activeCalls.entries()]) {
         if (meta.callerId === userId || meta.calleeId === userId) {
-          const other = meta.callerId === userId ? meta.calleeId : meta.callerId;
-            safeRelay(other, 'call:end', { callId, reason: 'peer-disconnected' });
-            io.activeCalls.delete(callId);
+          endCallServer(callId, 'peer-disconnected', userId);
         }
       }
     });
@@ -142,18 +169,7 @@ export default function initSocket(io) {
     // ✅ Chat events
     socket.on("chat:message", (data) => io.to(data.to).emit("chat:message", data));
 
-    // ✅ WebRTC signaling
-    socket.on("webrtc:offer", (data) => {
-      io.to(data.to).emit("webrtc:offer", { offer: data.offer, from: socket.data.user?.id });
-    });
-
-    socket.on("webrtc:answer", (data) => {
-      io.to(data.to).emit("webrtc:answer", { answer: data.answer, from: socket.data.user?.id });
-    });
-
-    socket.on("webrtc:ice-candidate", (data) => {
-      io.to(data.to).emit("webrtc:ice-candidate", { candidate: data.candidate, from: socket.data.user?.id });
-    });
+    // (Legacy webrtc:* signaling removed after migration to call:* events)
 
     // ✅ Incoming call (doctor → patient)
     socket.on("webrtc:start-call", ({ patientId, to, appointmentId, fromUserName }) => {

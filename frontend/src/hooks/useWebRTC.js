@@ -1,10 +1,13 @@
-// frontend/src/hooks/useWebRTC.js
-import { useEffect, useRef, useState } from "react";
-import { getSocket } from "../utils/socket";
+// Fresh WebRTC Hook - Simplified for Demo
+import { useState, useEffect, useRef } from 'react';
+import { getSocket } from '../utils/socket';
 
 export default function useWebRTC(user) {
+  // States
+  const [callState, setCallState] = useState('idle'); // idle, incoming, active
   const [incomingOffer, setIncomingOffer] = useState(null);
-
+  
+  // Refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const pcRef = useRef(null);
@@ -12,49 +15,37 @@ export default function useWebRTC(user) {
   const localStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
 
+  // Enhanced ICE servers for better connectivity
+  const iceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+    { 
+      urls: ["turn:relay1.expressturn.com:3478?transport=udp", "turn:relay1.expressturn.com:3478?transport=tcp"],
+      username: "efCZWX3MTI071W2V6N", 
+      credential: "mGWa8dVKpR4FgpE" 
+    },
+    {
+      urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443"],
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    }
+  ];
+
+  // Initialize
   useEffect(() => {
     socketRef.current = getSocket();
-    console.log("🔌 WebRTC Hook initialized:", {
-      socketConnected: socketRef.current?.connected,
-      userId: user?._id,
-      userRole: user?.role,
-      socketId: socketRef.current?.id
-    });
-
-    if (user?._id) {
-      // 🔑 Register user with signaling server
-      socketRef.current.emit("register", user._id);
-      console.log("📝 Registered user with socket:", user._id);
-    }
-
-    // Create RTCPeerConnection
-    pcRef.current = new RTCPeerConnection({
-      iceServers: [
-        // STUN
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        // TURN fallback (public/demo). Replace with your managed TURN for production.
-        // Example: OpenRelayProject (usage limits apply)
-        // Username and credential are public demo creds; for hackathon reliability only.
-        {
-          urls: [
-            "turn:openrelay.metered.ca:80",
-            "turn:openrelay.metered.ca:443",
-            "turns:openrelay.metered.ca:443?transport=tcp"
-          ],
-          username: "openrelayproject",
-          credential: "openrelayproject"
-        }
-      ],
-    });
-
-    // When remote track arrives, attach it to remote video
+    
+    // Create peer connection
+    pcRef.current = new RTCPeerConnection({ iceServers });
+    
+    // Handle remote stream
     pcRef.current.ontrack = (event) => {
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
     };
-
+    
     // Handle ICE candidates
     pcRef.current.onicecandidate = (event) => {
       if (event.candidate && remoteUserIdRef.current) {
@@ -64,203 +55,223 @@ export default function useWebRTC(user) {
         });
       }
     };
-
-    // Note: we defer requesting local media until the user initiates/answers a call.
-    // Requesting media on mount can cause silent failures in some environments (SSR, embedded webviews).
-
-    // Incoming offer: payload shape { offer, from }
-    const handleOffer = async (payload) => {
-      console.log("📥 Incoming Offer:", payload);
-      console.log("📥 Offer details:", {
-        hasOffer: !!payload?.offer,
-        from: payload?.from,
-        offerType: payload?.offer?.type,
-        socketConnected: socketRef.current?.connected
-      });
-      if (!payload?.offer) return;
-      remoteUserIdRef.current = payload.from || null;
-      setIncomingOffer(payload);
-    };
-
-    // Incoming answer: payload shape { answer, from }
-    const handleAnswer = async (payload) => {
-      console.log("📥 Incoming Answer:", payload);
-      console.log("📥 Answer details:", {
-        hasAnswer: !!payload?.answer,
-        from: payload?.from,
-        answerType: payload?.answer?.type,
-        socketConnected: socketRef.current?.connected
-      });
-      try {
-        if (pcRef.current && payload?.answer) {
-          await pcRef.current.setRemoteDescription(
-            new RTCSessionDescription(payload.answer)
-          );
-          console.log("✅ Remote answer applied successfully");
-        }
-      } catch (err) {
-        console.error("❌ Error applying remote answer:", err);
+    
+    // Connection state with detailed logging
+    pcRef.current.oniceconnectionstatechange = () => {
+      const state = pcRef.current.iceConnectionState;
+      console.log('🔗 ICE Connection state:', state);
+      
+      if (state === 'connected' || state === 'completed') {
+        console.log('✅ Call connected successfully!');
+        setCallState('active');
+      } else if (state === 'failed') {
+        console.error('❌ ICE connection failed - checking firewall/network');
+      } else if (state === 'disconnected') {
+        console.warn('⚠️ ICE connection disconnected - may reconnect');
+      } else if (state === 'checking') {
+        console.log('🔍 ICE checking - establishing connection...');
       }
     };
 
-    // Incoming ICE: payload shape { candidate, from }
-    const handleIce = async (payload) => {
-      console.log("📥 Incoming ICE Candidate:", payload);
-      console.log("📥 ICE details:", {
-        hasCandidate: !!payload?.candidate,
-        from: payload?.from,
-        candidateType: payload?.candidate?.candidate,
-        socketConnected: socketRef.current?.connected
-      });
-      try {
-        if (pcRef.current && payload?.candidate) {
-          await pcRef.current.addIceCandidate(
-            new RTCIceCandidate(payload.candidate)
-          );
-          console.log("✅ ICE candidate added successfully");
-        }
-      } catch (err) {
-        console.error("❌ Error adding ICE candidate:", err);
+    // Add connection state change handler
+    pcRef.current.onconnectionstatechange = () => {
+      const state = pcRef.current.connectionState;
+      console.log('🌐 Peer connection state:', state);
+      
+      if (state === 'failed') {
+        console.error('❌ Peer connection failed completely');
+      } else if (state === 'disconnected') {
+        console.warn('⚠️ Peer connection disconnected');
       }
     };
 
+    // Register user
+    if (user?._id) {
+      socketRef.current.emit("register", user._id);
+    }
+
+    // Socket listeners
     socketRef.current.on("webrtc:offer", handleOffer);
     socketRef.current.on("webrtc:answer", handleAnswer);
-    socketRef.current.on("webrtc:ice-candidate", handleIce);
+    socketRef.current.on("webrtc:ice-candidate", handleIceCandidate);
 
     return () => {
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current.getTracks().forEach(track => track.stop());
       }
       if (pcRef.current) {
         pcRef.current.close();
       }
-      if (socketRef.current) {
-        socketRef.current.off("webrtc:offer", handleOffer);
-        socketRef.current.off("webrtc:answer", handleAnswer);
-        socketRef.current.off("webrtc:ice-candidate", handleIce);
-      }
     };
   }, [user]);
 
-  // Re-register user when user state changes (e.g., after auth check)
-  useEffect(() => {
-    if (user?._id && socketRef.current?.connected) {
-      console.log("🔄 Re-registering user with socket:", user._id);
-      socketRef.current.emit("register", user._id);
-    }
-  }, [user?._id]);
-
-  // Helper: request media with fallbacks
-  const getLocalMedia = async () => {
-    const constraintsList = [
-      { video: true, audio: true },
-      { video: false, audio: true },
-    ];
-
-    const tryModern = async (constraints) => {
-      if (typeof navigator === 'undefined') return null;
-      if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-        return navigator.mediaDevices.getUserMedia(constraints);
-      }
-      return null;
-    };
-
-    const tryLegacy = (constraints) => {
-      const getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-      if (!getUserMedia) return null;
-      return new Promise((resolve, reject) => getUserMedia.call(navigator, constraints, resolve, reject));
-    };
-
-    for (const c of constraintsList) {
-      try {
-        const s = await tryModern(c);
-        if (s) return s;
-      } catch (e) {
-        if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) throw e;
-      }
-      try {
-        const s = await tryLegacy(c);
-        if (s) return s;
-      } catch (e) {
-        if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) throw e;
-      }
-    }
-    return null;
+  // Handle incoming offer
+  const handleOffer = async (payload) => {
+    console.log('📥 Incoming offer from:', payload.from);
+    setIncomingOffer(payload);
+    setCallState('incoming');
+    remoteUserIdRef.current = payload.from;
   };
 
-  const startCall = async (targetUserId) => {
-    if (!pcRef.current || !targetUserId) return;
-    remoteUserIdRef.current = targetUserId;
-    try {
-      // Ensure we have local media and attach tracks
-      if (!localStreamRef.current) {
-        try {
-          const stream = await getLocalMedia();
-          if (stream) {
-            localStreamRef.current = stream;
-            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-            stream.getTracks().forEach((track) => pcRef.current.addTrack(track, stream));
-          }
-        } catch (err) {
-          console.error('Permission denied while getting local media for startCall:', err);
-          return; // user denied — stop starting the call
-        }
-      }
+  // Handle answer
+  const handleAnswer = async (payload) => {
+    console.log('📥 Received answer');
+    if (pcRef.current && payload?.answer) {
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+      setCallState('active');
+    }
+  };
 
+  // Handle ICE candidate
+  const handleIceCandidate = async (payload) => {
+    try {
+      if (pcRef.current && payload?.candidate) {
+        console.log('📥 Adding ICE candidate:', payload.candidate.candidate?.substring(0, 50) + '...');
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+        console.log('✅ ICE candidate added successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error adding ICE candidate:', error);
+    }
+  };
+
+  // Start call (for doctor)
+  const startCall = async (targetUserId) => {
+    try {
+      console.log('📞 Starting call to:', targetUserId);
+      remoteUserIdRef.current = targetUserId;
+      
+      // Get local media with error handling
+      console.log('🎥 Requesting camera and microphone access...');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        console.log('✅ Local video stream attached');
+      }
+      
+      // Add tracks to peer connection
+      stream.getTracks().forEach(track => {
+        console.log('➕ Adding track:', track.kind, track.label);
+        pcRef.current.addTrack(track, stream);
+      });
+      
+      // Create and send offer
+      console.log('📝 Creating offer...');
       const offer = await pcRef.current.createOffer();
       await pcRef.current.setLocalDescription(offer);
-
+      console.log('✅ Local description set, sending offer');
+      
       socketRef.current.emit("webrtc:offer", {
         offer,
         to: targetUserId,
       });
-
-      console.log("📤 Sent Offer:", offer);
-    } catch (err) {
-      console.error("Error starting call:", err);
+      
+      setCallState('calling');
+    } catch (error) {
+      console.error('❌ Error starting call:', error);
+      setCallState('idle');
     }
   };
 
+  // Answer call (for patient)
   const answerCall = async () => {
-    if (!incomingOffer || !pcRef.current) return;
-
     try {
-      await pcRef.current.setRemoteDescription(
-        new RTCSessionDescription(incomingOffer.offer)
-      );
-
-      // Ensure we have local media and attach tracks before creating answer
-      if (!localStreamRef.current) {
-        try {
-          const stream = await getLocalMedia();
-          if (stream) {
-            localStreamRef.current = stream;
-            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-            stream.getTracks().forEach((track) => pcRef.current.addTrack(track, stream));
-          }
-        } catch (err) {
-          console.error('Permission denied while getting local media for answerCall:', err);
-          return; // user denied — do not proceed with answering
-        }
+      console.log('📞 Answering call');
+      
+      if (!incomingOffer) {
+        console.error('❌ No incoming offer to answer');
+        return;
       }
-
+      
+      // Get local media
+      console.log('🎥 Patient requesting camera and microphone access...');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        console.log('✅ Patient local video stream attached');
+      }
+      
+      // Add tracks to peer connection
+      stream.getTracks().forEach(track => {
+        console.log('➕ Patient adding track:', track.kind, track.label);
+        pcRef.current.addTrack(track, stream);
+      });
+      
+      // Set remote description and create answer
+      console.log('📝 Setting remote description and creating answer...');
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
-
-      const toUserId = incomingOffer.from;
-      remoteUserIdRef.current = toUserId || remoteUserIdRef.current;
-
+      console.log('✅ Answer created and local description set');
+      
+      // Send answer
       socketRef.current.emit("webrtc:answer", {
         answer,
-        to: toUserId,
+        to: incomingOffer.from,
       });
-
-      console.log("📤 Sent Answer:", answer);
-    } catch (err) {
-      console.error("Error answering call:", err);
+      console.log('📤 Answer sent to doctor');
+      
+      setCallState('active');
+      setIncomingOffer(null);
+    } catch (error) {
+      console.error('❌ Error answering call:', error);
+      setCallState('idle');
     }
   };
 
-  return { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer };
+  // End call
+  const endCall = () => {
+    console.log('📞 Ending call');
+    
+    // Stop local stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    
+    // Close peer connection
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = new RTCPeerConnection({ iceServers });
+      
+      // Re-setup handlers
+      pcRef.current.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+      
+      pcRef.current.onicecandidate = (event) => {
+        if (event.candidate && remoteUserIdRef.current) {
+          socketRef.current.emit("webrtc:ice-candidate", {
+            candidate: event.candidate,
+            to: remoteUserIdRef.current,
+          });
+        }
+      };
+    }
+    
+    // Reset state
+    setCallState('idle');
+    setIncomingOffer(null);
+    remoteUserIdRef.current = null;
+    
+    // Clear video elements
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  };
+
+  return {
+    localVideoRef,
+    remoteVideoRef,
+    startCall,
+    answerCall,
+    endCall,
+    incomingOffer,
+    callState
+  };
 }

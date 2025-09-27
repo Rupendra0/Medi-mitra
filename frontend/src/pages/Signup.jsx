@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { getSocket } from "../utils/socket";
+import { io } from "socket.io-client";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../utils/authSlice';
@@ -82,9 +82,11 @@ const Signup = () => {
         // ignore if redux not available
       }
 
-      // After signup → register on shared socket
-      const socket = getSocket();
-      socket.auth = { token: data.token };
+      // After signup → connect socket.io
+      const socket = io(API_URL, { 
+        withCredentials: true,
+        auth: { token: data.token }
+      });
       socket.emit("register", {
         userId: data.user?._id,
         role: data.user?.role,

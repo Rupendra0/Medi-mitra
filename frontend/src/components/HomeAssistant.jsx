@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useEffect } from "react";
-import { getSocket } from "../utils/socket";
+import io from "socket.io-client";
 import ReactMarkdown from "react-markdown";
 import AnimatedButton from "./AnimatedButton";
 import logo from "../logo.png";
@@ -33,8 +33,12 @@ export default function HomeAssistant() {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    const s = getSocket();
+    // Connect to Socket.io server
+    const s = io(API_URL);
     setSocket(s);
+    return () => {
+      s.disconnect();
+    };
   }, []);
 
   // Start video call (basic demo)
@@ -192,7 +196,21 @@ export default function HomeAssistant() {
         </div>
 
         <div className="space-y-4">
-          {/* Video call button removed for all roles */}
+          {/* Video Call Demo */}
+          {user && (
+            <div
+              style={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "1rem" }}
+            >
+              <AnimatedButton
+                onClick={startVideoCall}
+                variant="secondary"
+                size="large"
+              >
+                🎥 Start Video Call Demo
+              </AnimatedButton>
+            </div>
+          )}
+          
           {remoteStream && (
             <video
               ref={videoRef}
