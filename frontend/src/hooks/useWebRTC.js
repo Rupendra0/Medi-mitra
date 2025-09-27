@@ -15,14 +15,20 @@ export default function useWebRTC(user) {
   const localStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
 
-  // Simple ICE servers
+  // Enhanced ICE servers for better connectivity
   const iceServers = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
     { 
-      urls: "turn:relay1.expressturn.com:3478",
+      urls: ["turn:relay1.expressturn.com:3478?transport=udp", "turn:relay1.expressturn.com:3478?transport=tcp"],
       username: "efCZWX3MTI071W2V6N", 
       credential: "mGWa8dVKpR4FgpE" 
+    },
+    {
+      urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443"],
+      username: "openrelayproject",
+      credential: "openrelayproject"
     }
   ];
 
@@ -50,14 +56,32 @@ export default function useWebRTC(user) {
       }
     };
     
-    // Connection state
+    // Connection state with detailed logging
     pcRef.current.oniceconnectionstatechange = () => {
       const state = pcRef.current.iceConnectionState;
-      console.log('Connection state:', state);
+      console.log('🔗 ICE Connection state:', state);
       
       if (state === 'connected' || state === 'completed') {
         console.log('✅ Call connected successfully!');
         setCallState('active');
+      } else if (state === 'failed') {
+        console.error('❌ ICE connection failed - checking firewall/network');
+      } else if (state === 'disconnected') {
+        console.warn('⚠️ ICE connection disconnected - may reconnect');
+      } else if (state === 'checking') {
+        console.log('🔍 ICE checking - establishing connection...');
+      }
+    };
+
+    // Add connection state change handler
+    pcRef.current.onconnectionstatechange = () => {
+      const state = pcRef.current.connectionState;
+      console.log('🌐 Peer connection state:', state);
+      
+      if (state === 'failed') {
+        console.error('❌ Peer connection failed completely');
+      } else if (state === 'disconnected') {
+        console.warn('⚠️ Peer connection disconnected');
       }
     };
 
@@ -100,71 +124,103 @@ export default function useWebRTC(user) {
 
   // Handle ICE candidate
   const handleIceCandidate = async (payload) => {
-    if (pcRef.current && payload?.candidate) {
-      await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+    try {
+      if (pcRef.current && payload?.candidate) {
+        console.log('📥 Adding ICE candidate:', payload.candidate.candidate?.substring(0, 50) + '...');
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+        console.log('✅ ICE candidate added successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error adding ICE candidate:', error);
     }
   };
 
   // Start call (for doctor)
   const startCall = async (targetUserId) => {
-    console.log('📞 Starting call to:', targetUserId);
-    remoteUserIdRef.current = targetUserId;
-    
-    // Get local media
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localStreamRef.current = stream;
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+    try {
+      console.log('📞 Starting call to:', targetUserId);
+      remoteUserIdRef.current = targetUserId;
+      
+      // Get local media with error handling
+      console.log('🎥 Requesting camera and microphone access...');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        console.log('✅ Local video stream attached');
+      }
+      
+      // Add tracks to peer connection
+      stream.getTracks().forEach(track => {
+        console.log('➕ Adding track:', track.kind, track.label);
+        pcRef.current.addTrack(track, stream);
+      });
+      
+      // Create and send offer
+      console.log('📝 Creating offer...');
+      const offer = await pcRef.current.createOffer();
+      await pcRef.current.setLocalDescription(offer);
+      console.log('✅ Local description set, sending offer');
+      
+      socketRef.current.emit("webrtc:offer", {
+        offer,
+        to: targetUserId,
+      });
+      
+      setCallState('calling');
+    } catch (error) {
+      console.error('❌ Error starting call:', error);
+      setCallState('idle');
     }
-    
-    // Add tracks to peer connection
-    stream.getTracks().forEach(track => {
-      pcRef.current.addTrack(track, stream);
-    });
-    
-    // Create and send offer
-    const offer = await pcRef.current.createOffer();
-    await pcRef.current.setLocalDescription(offer);
-    
-    socketRef.current.emit("webrtc:offer", {
-      offer,
-      to: targetUserId,
-    });
-    
-    setCallState('calling');
   };
 
   // Answer call (for patient)
   const answerCall = async () => {
-    console.log('📞 Answering call');
-    
-    if (!incomingOffer) return;
-    
-    // Get local media
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localStreamRef.current = stream;
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+    try {
+      console.log('📞 Answering call');
+      
+      if (!incomingOffer) {
+        console.error('❌ No incoming offer to answer');
+        return;
+      }
+      
+      // Get local media
+      console.log('🎥 Patient requesting camera and microphone access...');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        console.log('✅ Patient local video stream attached');
+      }
+      
+      // Add tracks to peer connection
+      stream.getTracks().forEach(track => {
+        console.log('➕ Patient adding track:', track.kind, track.label);
+        pcRef.current.addTrack(track, stream);
+      });
+      
+      // Set remote description and create answer
+      console.log('📝 Setting remote description and creating answer...');
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+      const answer = await pcRef.current.createAnswer();
+      await pcRef.current.setLocalDescription(answer);
+      console.log('✅ Answer created and local description set');
+      
+      // Send answer
+      socketRef.current.emit("webrtc:answer", {
+        answer,
+        to: incomingOffer.from,
+      });
+      console.log('📤 Answer sent to doctor');
+      
+      setCallState('active');
+      setIncomingOffer(null);
+    } catch (error) {
+      console.error('❌ Error answering call:', error);
+      setCallState('idle');
     }
-    
-    // Add tracks to peer connection
-    stream.getTracks().forEach(track => {
-      pcRef.current.addTrack(track, stream);
-    });
-    
-    // Set remote description and create answer
-    await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
-    const answer = await pcRef.current.createAnswer();
-    await pcRef.current.setLocalDescription(answer);
-    
-    // Send answer
-    socketRef.current.emit("webrtc:answer", {
-      answer,
-      to: incomingOffer.from,
-    });
-    
-    setCallState('active');
-    setIncomingOffer(null);
   };
 
   // End call
