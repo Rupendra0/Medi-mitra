@@ -2,6 +2,15 @@
 import { useEffect, useRef, useState } from "react";
 import { getSocket } from "../utils/socket";
 
+// Configuration flag for demo mode - set to true for classical STUN-only P2P
+const CLASSIC_P2P_MODE = true;
+
+// Classical STUN-only configuration for reliable peer-to-peer demo
+const CLASSIC_ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" }
+];
+
 export default function useWebRTC(user) {
   const [incomingOffer, setIncomingOffer] = useState(null);
   const [callState, setCallState] = useState('idle'); // idle, incoming, active, ended
@@ -117,8 +126,8 @@ export default function useWebRTC(user) {
 
   // Helper function to create peer connection with enhanced configuration
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: [
+    // Use classical STUN-only mode for reliable demo, or full config if disabled
+    const iceServers = CLASSIC_P2P_MODE ? CLASSIC_ICE_SERVERS : [
         // Primary STUN servers (most reliable, unlimited free)
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
@@ -166,7 +175,12 @@ export default function useWebRTC(user) {
           username: "webrtc",
           credential: "webrtc"
         }
-      ],
+      ];
+
+    console.log(`🧊 ${CLASSIC_P2P_MODE ? 'Classical' : 'Enhanced'} mode - ICE servers:`, iceServers.map(s => s.urls));
+    
+    const pc = new RTCPeerConnection({
+      iceServers,
       iceCandidatePoolSize: 10, // Pre-gather more candidates for better connectivity
       iceTransportPolicy: 'all', // Allow both relay and direct connections
       bundlePolicy: 'balanced', // More compatible than max-bundle
@@ -306,6 +320,12 @@ export default function useWebRTC(user) {
   };
 
   const scheduleIceEscalation = (pc, stage) => {
+    // Skip escalation entirely in classical P2P mode
+    if (CLASSIC_P2P_MODE) {
+      console.log('🧊 Classical mode - no ICE escalation, using simple STUN P2P');
+      return;
+    }
+    
     if (iceEscalationTimeoutRef.current) clearTimeout(iceEscalationTimeoutRef.current);
     iceEscalationTimeoutRef.current = setTimeout(() => {
       if (!pc) return;
@@ -337,18 +357,24 @@ export default function useWebRTC(user) {
   };
 
   const buildPeerConnectionForStage = (stage) => {
-    const servers = ICE_STAGES[stage] || ICE_STAGES[ICE_STAGES.length-1];
-    console.log('🧊 Building PC for stage', stage, servers.map(s=>s.urls));
+    // Use classical mode configuration if enabled
+    const servers = CLASSIC_P2P_MODE ? CLASSIC_ICE_SERVERS : (ICE_STAGES[stage] || ICE_STAGES[ICE_STAGES.length-1]);
+    console.log(`🧊 ${CLASSIC_P2P_MODE ? 'Classical' : 'Staged'} PC - ${CLASSIC_P2P_MODE ? 'STUN-only' : 'stage ' + stage}:`, servers.map(s=>s.urls));
+    
     const pc = new RTCPeerConnection({
       iceServers: servers,
-      iceCandidatePoolSize: stage === 0 ? 0 : 5,
+      iceCandidatePoolSize: CLASSIC_P2P_MODE ? 0 : (stage === 0 ? 0 : 5),
       bundlePolicy: 'balanced',
       iceTransportPolicy: 'all',
       rtcpMuxPolicy: 'require'
     });
     attachCoreHandlers(pc);
-    startIceDiagnostics(pc);
-    scheduleIceEscalation(pc, stage);
+    
+    // Skip diagnostics and escalation in classical mode
+    if (!CLASSIC_P2P_MODE) {
+      startIceDiagnostics(pc);
+      scheduleIceEscalation(pc, stage);
+    }
     return pc;
   };
 
