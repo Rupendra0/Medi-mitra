@@ -11,21 +11,22 @@ export default function CallPage() {
   const [searchParams] = useSearchParams();
   const [resolvedPatientId, setResolvedPatientId] = useState(searchParams.get("patientId"));
   const user = useSelector((state) => state.auth.user);
-  const { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer } =
+  const { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer, callState, endCall } =
     useWebRTC(user);
 
-  // Patient auto-answers when an offer arrives
+  // Patient auto-answers when an offer arrives (only once per offer)
   useEffect(() => {
-    if (user?.role === "patient") {
+    if (user?.role === "patient" && incomingOffer && callState === "incoming") {
       console.log("🏥 Patient on call page - attempting to answer:", {
         hasIncomingOffer: !!incomingOffer,
         incomingOffer: incomingOffer,
         userRole: user?.role,
-        appointmentId
+        appointmentId,
+        callState
       });
       answerCall();
     }
-  }, [user, answerCall, incomingOffer, appointmentId]);
+  }, [user, answerCall, incomingOffer, appointmentId, callState]);
 
   // Doctor: if patientId not provided, resolve from appointment API
   useEffect(() => {
@@ -88,15 +89,45 @@ export default function CallPage() {
       </div>
 
       {/* Footer Controls */}
-      <div className="p-4 flex justify-center bg-gray-800">
+      <div className="p-4 flex justify-center items-center space-x-4 bg-gray-800">
+        {/* Call State Indicator */}
+        <div className={`px-3 py-1 rounded-lg text-sm font-medium ${
+          callState === 'idle' ? 'bg-gray-600' :
+          callState === 'incoming' ? 'bg-yellow-600' :
+          callState === 'answering' ? 'bg-blue-600' :
+          callState === 'active' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {callState === 'idle' && 'Waiting...'}
+          {callState === 'incoming' && 'Incoming Call'}
+          {callState === 'answering' && 'Connecting...'}
+          {callState === 'active' && 'Connected'}
+          {callState === 'ended' && 'Call Ended'}
+        </div>
+
         {user?.role === "doctor" && (
           <button
             onClick={handleDoctorStart}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-            disabled={!resolvedPatientId}
-            title={!resolvedPatientId ? "Resolving patient..." : "Start Call"}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
+            disabled={!resolvedPatientId || callState === 'active'}
+            title={!resolvedPatientId ? "Resolving patient..." : callState === 'active' ? "Call in progress" : "Start Call"}
           >
-            Start Call
+            {callState === 'active' ? 'Call Active' : 'Start Call'}
+          </button>
+        )}
+
+        {user?.role === "patient" && callState === "incoming" && (
+          <div className="text-yellow-400 text-sm">
+            Auto-answering incoming call...
+          </div>
+        )}
+
+        {callState === 'active' && (
+          <button
+            onClick={endCall}
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg"
+            title="End Call"
+          >
+            End Call
           </button>
         )}
       </div>

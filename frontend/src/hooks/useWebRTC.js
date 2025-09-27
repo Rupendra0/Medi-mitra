@@ -4,6 +4,7 @@ import { getSocket } from "../utils/socket";
 
 export default function useWebRTC(user) {
   const [incomingOffer, setIncomingOffer] = useState(null);
+  const [callState, setCallState] = useState('idle'); // idle, incoming, answering, active, ended
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -11,6 +12,7 @@ export default function useWebRTC(user) {
   const socketRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
+  const answeredOfferRef = useRef(null); // Track which offer we've answered
 
   useEffect(() => {
     socketRef.current = getSocket();
@@ -75,10 +77,21 @@ export default function useWebRTC(user) {
         hasOffer: !!payload?.offer,
         from: payload?.from,
         offerType: payload?.offer?.type,
-        socketConnected: socketRef.current?.connected
+        socketConnected: socketRef.current?.connected,
+        currentCallState: callState,
+        pcState: pcRef.current?.signalingState
       });
+      
       if (!payload?.offer) return;
+      
+      // Check if we've already processed this offer or are in an active call
+      if (answeredOfferRef.current === payload.from || callState === 'answering' || callState === 'active') {
+        console.log("🚫 Ignoring duplicate or invalid offer - already in call state:", callState);
+        return;
+      }
+      
       remoteUserIdRef.current = payload.from || null;
+      setCallState('incoming');
       setIncomingOffer(payload);
     };
 
@@ -89,7 +102,9 @@ export default function useWebRTC(user) {
         hasAnswer: !!payload?.answer,
         from: payload?.from,
         answerType: payload?.answer?.type,
-        socketConnected: socketRef.current?.connected
+        socketConnected: socketRef.current?.connected,
+        currentCallState: callState,
+        pcState: pcRef.current?.signalingState
       });
       try {
         if (pcRef.current && payload?.answer) {
@@ -97,6 +112,7 @@ export default function useWebRTC(user) {
             new RTCSessionDescription(payload.answer)
           );
           console.log("✅ Remote answer applied successfully");
+          setCallState('active'); // Call is now active
         }
       } catch (err) {
         console.error("❌ Error applying remote answer:", err);
@@ -140,6 +156,10 @@ export default function useWebRTC(user) {
         socketRef.current.off("webrtc:answer", handleAnswer);
         socketRef.current.off("webrtc:ice-candidate", handleIce);
       }
+      // Reset state on cleanup
+      setCallState('idle');
+      setIncomingOffer(null);
+      answeredOfferRef.current = null;
     };
   }, [user]);
 
@@ -191,8 +211,16 @@ export default function useWebRTC(user) {
 
   const startCall = async (targetUserId) => {
     if (!pcRef.current || !targetUserId) return;
+    
+    if (callState !== 'idle') {
+      console.log("❌ Cannot start call - already in state:", callState);
+      return;
+    }
+    
     remoteUserIdRef.current = targetUserId;
     try {
+      setCallState('answering'); // Doctor is initiating, so set to answering state
+      
       // Ensure we have local media and attach tracks
       if (!localStreamRef.current) {
         try {
@@ -204,6 +232,7 @@ export default function useWebRTC(user) {
           }
         } catch (err) {
           console.error('Permission denied while getting local media for startCall:', err);
+          setCallState('idle');
           return; // user denied — stop starting the call
         }
       }
@@ -219,16 +248,39 @@ export default function useWebRTC(user) {
       console.log("📤 Sent Offer:", offer);
     } catch (err) {
       console.error("Error starting call:", err);
+      setCallState('idle');
     }
   };
 
   const answerCall = async () => {
-    if (!incomingOffer || !pcRef.current) return;
+    if (!incomingOffer || !pcRef.current) {
+      console.log("❌ Cannot answer call - missing offer or peer connection");
+      return;
+    }
+
+    // Prevent multiple answer attempts
+    if (callState === 'answering' || callState === 'active') {
+      console.log("❌ Cannot answer call - already in state:", callState);
+      return;
+    }
+
+    // Check if we've already answered this offer
+    if (answeredOfferRef.current === incomingOffer.from) {
+      console.log("❌ Already answered call from:", incomingOffer.from);
+      return;
+    }
 
     try {
-      await pcRef.current.setRemoteDescription(
-        new RTCSessionDescription(incomingOffer.offer)
-      );
+      setCallState('answering');
+      console.log("📞 Starting answer process - PC state:", pcRef.current.signalingState);
+      
+      // Only set remote description if we haven't already
+      if (pcRef.current.signalingState === 'stable') {
+        await pcRef.current.setRemoteDescription(
+          new RTCSessionDescription(incomingOffer.offer)
+        );
+        console.log("✅ Remote description set, PC state now:", pcRef.current.signalingState);
+      }
 
       // Ensure we have local media and attach tracks before creating answer
       if (!localStreamRef.current) {
@@ -241,26 +293,94 @@ export default function useWebRTC(user) {
           }
         } catch (err) {
           console.error('Permission denied while getting local media for answerCall:', err);
+          setCallState('idle');
           return; // user denied — do not proceed with answering
         }
       }
 
-      const answer = await pcRef.current.createAnswer();
-      await pcRef.current.setLocalDescription(answer);
+      // Only create answer if in the correct state
+      if (pcRef.current.signalingState === 'have-remote-offer') {
+        const answer = await pcRef.current.createAnswer();
+        await pcRef.current.setLocalDescription(answer);
 
-      const toUserId = incomingOffer.from;
-      remoteUserIdRef.current = toUserId || remoteUserIdRef.current;
+        const toUserId = incomingOffer.from;
+        remoteUserIdRef.current = toUserId || remoteUserIdRef.current;
+        answeredOfferRef.current = toUserId; // Mark this offer as answered
 
-      socketRef.current.emit("webrtc:answer", {
-        answer,
-        to: toUserId,
-      });
+        socketRef.current.emit("webrtc:answer", {
+          answer,
+          to: toUserId,
+        });
 
-      console.log("📤 Sent Answer:", answer);
+        console.log("📤 Sent Answer:", answer);
+        setCallState('active');
+        setIncomingOffer(null); // Clear the offer after answering
+      } else {
+        console.error("❌ Cannot create answer - PC state:", pcRef.current.signalingState);
+        setCallState('idle');
+      }
     } catch (err) {
       console.error("Error answering call:", err);
+      setCallState('idle');
     }
   };
 
-  return { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer };
+  const endCall = () => {
+    console.log("📞 Ending call");
+    
+    // Stop local stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    
+    // Close peer connection
+    if (pcRef.current) {
+      pcRef.current.close();
+      // Create new peer connection for future calls
+      pcRef.current = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          {
+            urls: [
+              "turn:openrelay.metered.ca:80",
+              "turn:openrelay.metered.ca:443",
+              "turns:openrelay.metered.ca:443?transport=tcp"
+            ],
+            username: "openrelayproject",
+            credential: "openrelayproject"
+          }
+        ],
+      });
+      
+      // Re-setup event handlers
+      pcRef.current.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+      
+      pcRef.current.onicecandidate = (event) => {
+        if (event.candidate && remoteUserIdRef.current) {
+          socketRef.current.emit("webrtc:ice-candidate", {
+            candidate: event.candidate,
+            to: remoteUserIdRef.current,
+          });
+        }
+      };
+    }
+    
+    // Reset state
+    setCallState('idle');
+    setIncomingOffer(null);
+    answeredOfferRef.current = null;
+    remoteUserIdRef.current = null;
+    
+    // Clear video elements
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  };
+
+  return { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer, callState, endCall };
 }

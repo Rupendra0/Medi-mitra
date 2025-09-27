@@ -5,44 +5,6 @@ import Appointment from "../models/Appointment.js";
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 export default function initSocket(io) {
-  // Track active calls and call states
-  const activeCalls = new Map(); // appointmentId -> { doctorId, patientId, status, timestamp }
-  const userCallStates = new Map(); // userId -> { appointmentId, status }
-
-  // Helper functions
-  const isUserInCall = (userId) => {
-    const userState = userCallStates.get(userId);
-    return userState && ['calling', 'ringing', 'connected'].includes(userState.status);
-  };
-
-  const isAppointmentActive = (appointmentId) => {
-    const call = activeCalls.get(appointmentId);
-    return call && ['calling', 'ringing', 'connected'].includes(call.status);
-  };
-
-  const setCallState = (appointmentId, doctorId, patientId, status) => {
-    const timestamp = Date.now();
-    
-    // Update appointment call state
-    activeCalls.set(appointmentId, { doctorId, patientId, status, timestamp });
-    
-    // Update user call states
-    userCallStates.set(doctorId, { appointmentId, status });
-    userCallStates.set(patientId, { appointmentId, status });
-    
-    console.log(`📞 Call state updated: ${appointmentId} -> ${status}`);
-  };
-
-  const clearCallState = (appointmentId) => {
-    const call = activeCalls.get(appointmentId);
-    if (call) {
-      userCallStates.delete(call.doctorId);
-      userCallStates.delete(call.patientId);
-      activeCalls.delete(appointmentId);
-      console.log(`📞 Call state cleared: ${appointmentId}`);
-    }
-  };
-
   io.use(async (socket, next) => {
     try {
       const tokenFromAuth = socket.handshake.auth?.token;
@@ -76,16 +38,6 @@ export default function initSocket(io) {
     } else {
       console.log("🔌 Socket connected without auth:", socket.id);
     }
-
-    // Send current call state to user on connection
-    if (socket.data?.user?.id) {
-      const userId = socket.data.user.id;
-      const userCallState = userCallStates.get(userId);
-      if (userCallState) {
-        socket.emit("call:state-sync", userCallState);
-      }
-    }
-
     // ✅ Chat events
     socket.on("chat:message", (data) => io.to(data.to).emit("chat:message", data));
 
@@ -96,138 +48,33 @@ export default function initSocket(io) {
 
     socket.on("webrtc:answer", (data) => {
       io.to(data.to).emit("webrtc:answer", { answer: data.answer, from: socket.data.user?.id });
-      
-      // Update call state to connected when answer is sent
-      const patientId = socket.data.user?.id;
-      const doctorId = data.to;
-      
-      // Find appointment ID for this call
-      for (const [appointmentId, call] of activeCalls.entries()) {
-        if (call.patientId === patientId && call.doctorId === doctorId) {
-          setCallState(appointmentId, doctorId, patientId, 'connected');
-          break;
-        }
-      }
     });
 
     socket.on("webrtc:ice-candidate", (data) => {
       io.to(data.to).emit("webrtc:ice-candidate", { candidate: data.candidate, from: socket.data.user?.id });
     });
 
-    // ✅ Incoming call (doctor → patient) - Enhanced with state management
+    // ✅ Incoming call (doctor → patient)
     socket.on("webrtc:start-call", ({ patientId, to, appointmentId, fromUserName }) => {
       const target = patientId || to; // frontend may send either field
-      const doctorId = socket.data.user?.id;
-      
-      if (!target || !doctorId || !appointmentId) {
-        console.log("❌ Invalid call parameters:", { target, doctorId, appointmentId });
-        return;
-      }
-
-      // Check if doctor is already in a call
-      if (isUserInCall(doctorId)) {
-        console.log("❌ Doctor already in a call:", doctorId);
-        socket.emit("call:error", { 
-          message: "You are already in a call",
-          code: "ALREADY_IN_CALL"
-        });
-        return;
-      }
-
-      // Check if patient is already in a call
-      if (isUserInCall(target)) {
-        console.log("❌ Patient already in a call:", target);
-        socket.emit("call:error", { 
-          message: "Patient is already in a call",
-          code: "PATIENT_BUSY"
-        });
-        return;
-      }
-
-      // Check if this appointment already has an active call
-      if (isAppointmentActive(appointmentId)) {
-        console.log("❌ Appointment already has active call:", appointmentId);
-        socket.emit("call:error", { 
-          message: "This appointment already has an active call",
-          code: "APPOINTMENT_ACTIVE"
-        });
-        return;
-      }
-
-      // Set call state to calling/ringing
-      setCallState(appointmentId, doctorId, target, 'calling');
-
+      if (!target) return;
       const payload = {
-        from: doctorId,
+        from: socket.data.user?.id,
         fromUserName: fromUserName || socket.data.user?.name || "Doctor",
         appointmentId,
         timestamp: Date.now(),
         type: "call-notification",
       };
-      
       console.log("📞 Emitting webrtc:start-call to", target, payload);
       io.to(target).emit("webrtc:start-call", payload);
-
-      // Set timeout to auto-clear call if not answered in 60 seconds
-      setTimeout(() => {
-        const call = activeCalls.get(appointmentId);
-        if (call && call.status === 'calling') {
-          console.log("📞 Call timeout for appointment:", appointmentId);
-          clearCallState(appointmentId);
-          io.to(doctorId).emit("call:timeout", { appointmentId });
-          io.to(target).emit("call:timeout", { appointmentId });
-        }
-      }, 60000);
     });
 
     // ✅ Patient rejects call
     socket.on("webrtc:call-declined", ({ doctorId, appointmentId }) => {
-      console.log("📞 Call declined:", { doctorId, appointmentId });
-      clearCallState(appointmentId);
       io.to(doctorId).emit("webrtc:call-declined", {
         from: socket.data.user?.id,
         appointmentId,
       });
-    });
-
-    // ✅ Call ended by either party
-    socket.on("webrtc:end-call", ({ appointmentId, targetUserId }) => {
-      console.log("📞 Call ended:", { appointmentId, userId: socket.data.user?.id });
-      
-      if (appointmentId) {
-        const call = activeCalls.get(appointmentId);
-        if (call) {
-          clearCallState(appointmentId);
-          // Notify both parties
-          io.to(call.doctorId).emit("webrtc:call-ended", { appointmentId });
-          io.to(call.patientId).emit("webrtc:call-ended", { appointmentId });
-        }
-      } else if (targetUserId) {
-        // Fallback if only targetUserId is provided
-        io.to(targetUserId).emit("webrtc:call-ended", {});
-      }
-    });
-
-    // Handle disconnection - clean up call states
-    socket.on("disconnect", () => {
-      const userId = socket.data?.user?.id;
-      if (userId) {
-        const userCallState = userCallStates.get(userId);
-        if (userCallState) {
-          console.log("📞 User disconnected during call:", userId);
-          const call = activeCalls.get(userCallState.appointmentId);
-          if (call) {
-            // Notify the other party
-            const otherUserId = call.doctorId === userId ? call.patientId : call.doctorId;
-            io.to(otherUserId).emit("webrtc:call-ended", { 
-              reason: "OTHER_USER_DISCONNECTED",
-              appointmentId: userCallState.appointmentId
-            });
-            clearCallState(userCallState.appointmentId);
-          }
-        }
-        console.log("🔌 Socket disconnected:", socket.id, socket.data.user);
-      }
     });
 
     // ✅ User registration / join rooms
