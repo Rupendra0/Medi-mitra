@@ -152,16 +152,23 @@ export default function CallPage() {
                 
                 {/* Connection Quality Indicator */}
                 {connectionQuality && callState !== 'ended' && (
-                  <div className="mt-3 flex items-center justify-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      connectionQuality === 'excellent' ? 'bg-green-500' :
-                      connectionQuality === 'good' ? 'bg-yellow-500' :
-                      connectionQuality === 'fair' ? 'bg-orange-500' :
-                      'bg-red-500'
-                    }`}></div>
-                    <span className="text-xs text-gray-400">
-                      Connection: {connectionQuality}
-                    </span>
+                  <div className="mt-3 flex flex-col items-center justify-center space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        connectionQuality === 'excellent' ? 'bg-green-500' :
+                        connectionQuality === 'good' ? 'bg-yellow-500' :
+                        connectionQuality === 'fair' ? 'bg-orange-500' :
+                        'bg-red-500'
+                      }`}></div>
+                      <span className="text-xs text-gray-400">
+                        Connection: {connectionQuality}
+                      </span>
+                    </div>
+                    {connectionQuality === 'poor' && (
+                      <p className="text-xs text-orange-400 text-center max-w-xs">
+                        Connection issues detected. Please check your internet connection or try refreshing the page.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

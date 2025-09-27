@@ -16,6 +16,20 @@ export default function useWebRTC(user) {
   const answeredOfferRef = useRef(null); // Track which offer we've answered
   const processedCandidates = useRef(new Set()); // Track processed ICE candidates
   const callSessionRef = useRef(null); // Track active call sessions
+  const retryCountRef = useRef(0); // Track connection retry attempts
+
+  // Helper function to create peer connection with enhanced configuration
+  const createSimplePeerConnection = () => {
+    console.log("🔄 Creating simplified peer connection (STUN only)");
+    return new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
+      ],
+      iceCandidatePoolSize: 0,
+      iceTransportPolicy: 'all'
+    });
+  };
 
   // Helper function to create peer connection with enhanced configuration
   const createPeerConnection = () => {
@@ -38,11 +52,16 @@ export default function useWebRTC(user) {
           credential: "openrelayproject"
         },
         
-        // Additional reliable TURN servers
+        // Additional reliable TURN servers with working credentials
         {
-          urls: ["turn:relay1.expressturn.com:3478", "turn:relay1.expressturn.com:3478?transport=tcp"],
-          username: "efGYBOFVAIH72FAMXX",
-          credential: "Q21GhNwhZcMNd6r3"
+          urls: ["turn:coturn.sua.io:3478", "turns:coturn.sua.io:5349"],
+          username: "coturn",
+          credential: "coturn"
+        },
+        {
+          urls: "turn:turnserver.stunprotocol.org:3478",
+          username: "suus",
+          credential: "yieChoi0PeoKo6d6Wuh7OoPma"
         },
         
         // Backup TURN servers
@@ -86,27 +105,38 @@ export default function useWebRTC(user) {
         console.log("✅ WebRTC connected successfully!");
         setConnectionQuality(iceState === 'completed' ? 'excellent' : 'good');
         setCallState('active');
+        retryCountRef.current = 0; // Reset retry counter on success
         if (connectionTimeout) clearTimeout(connectionTimeout);
       } else if (iceState === 'checking') {
         console.log("🔍 Checking connectivity (TURN servers will help if needed)...");
         setConnectionQuality('fair');
-        // Set a timeout for connection attempts
+        // Set a shorter timeout for quicker retry
         connectionTimeout = setTimeout(() => {
           if (pc.iceConnectionState === 'checking') {
-            console.log("⏱️ Connection taking time - TURN servers are working to establish relay...");
+            console.log("⏱️ Connection timeout - forcing retry...");
+            // Force a retry by triggering failed state
+            if (userRole === 'doctor') {
+              setTimeout(() => handleDoctorStart(), 1000);
+            }
           }
-        }, 15000); // Increased timeout for TURN relay
+        }, 8000); // Shorter timeout for quicker retry
       } else if (iceState === 'failed') {
         console.log("❌ Connection failed");
         if (connectionTimeout) clearTimeout(connectionTimeout);
         
-        // Immediate retry with new peer connection
-        console.log("🔄 Attempting automatic reconnection...");
-        setTimeout(() => {
-          if (userRole === 'doctor' && callState !== 'active') {
-            handleDoctorStart();
-          }
-        }, 2000); // Quick retry
+        retryCountRef.current += 1;
+        console.log(`🔄 Attempting reconnection (attempt ${retryCountRef.current}/3)...`);
+        
+        if (retryCountRef.current <= 3) {
+          setTimeout(() => {
+            if (userRole === 'doctor' && callState !== 'active') {
+              handleDoctorStart();
+            }
+          }, 1000 * retryCountRef.current); // Progressive delay
+        } else {
+          console.log("❌ Max retries reached - connection may not be possible");
+          setConnectionQuality('poor');
+        }
       } else if (iceState === 'disconnected') {
         console.log("⚠️ Connection disconnected - will attempt recovery");
         
@@ -424,6 +454,13 @@ export default function useWebRTC(user) {
     if (callState !== 'idle') {
       console.log("❌ Cannot start call - already in state:", callState);
       return;
+    }
+    
+    // Use simplified connection after multiple failures
+    if (retryCountRef.current >= 2) {
+      console.log("🔄 Using simplified connection (STUN only) after failures");
+      pcRef.current = createSimplePeerConnection();
+      setupPeerConnectionHandlers(pcRef.current);
     }
     
     remoteUserIdRef.current = targetUserId;
