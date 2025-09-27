@@ -7,6 +7,7 @@ import { logoutSuccess } from '../utils/authSlice';
 import api from '../utils/api';
 import HomeAssistant from "../components/HomeAssistant";
 import AnimatedButton from "../components/AnimatedButton";
+import Footer from "../components/Footer";
 import logo from "../logo.png";
 
 function Home() {
@@ -108,6 +109,8 @@ function Home() {
         </h2>
         <HomeAssistant />
       </section>
+      
+      <Footer />
     </div>
   );
 }

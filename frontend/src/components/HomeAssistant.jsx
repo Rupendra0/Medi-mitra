@@ -196,7 +196,21 @@ export default function HomeAssistant() {
         </div>
 
         <div className="space-y-4">
-          {/* Video call button removed for all roles */}
+          {/* Video Call Demo */}
+          {user && (
+            <div
+              style={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "1rem" }}
+            >
+              <AnimatedButton
+                onClick={startVideoCall}
+                variant="secondary"
+                size="large"
+              >
+                🎥 Start Video Call Demo
+              </AnimatedButton>
+            </div>
+          )}
+          
           {remoteStream && (
             <video
               ref={videoRef}
