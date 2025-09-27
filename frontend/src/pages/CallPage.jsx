@@ -68,7 +68,7 @@ export default function CallPage() {
   };
 
   return (
-    <div className="relative w-full h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 overflow-hidden">
+    <div className="fixed inset-0 w-full h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 overflow-hidden z-50">
       {/* Header Bar */}
       <div className="absolute top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center justify-between px-6 py-4">

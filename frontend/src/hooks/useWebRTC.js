@@ -20,9 +20,38 @@ export default function useWebRTC(user) {
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [
-        // Use only the most reliable servers
+        // Google STUN servers
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
+        { urls: "stun:stun1.l.google.com:19302" },
+        
+        // Free TURN servers for NAT traversal
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject"
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelayproject", 
+          credential: "openrelayproject"
+        },
+        {
+          urls: "turns:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
+          credential: "openrelayproject"
+        },
+        
+        // Additional free TURN server
+        {
+          urls: "turn:freeturn.net:3478",
+          username: "free",
+          credential: "free"
+        },
+        {
+          urls: "turn:freeturn.tel:3478",
+          username: "free", 
+          credential: "free"
+        }
       ],
       iceCandidatePoolSize: 0, // Disable pre-gathering to reduce candidate flood
       iceTransportPolicy: 'all' // Allow both relay and direct connections
@@ -47,12 +76,13 @@ export default function useWebRTC(user) {
         console.log("✅ WebRTC connected successfully!");
         if (connectionTimeout) clearTimeout(connectionTimeout);
       } else if (iceState === 'checking') {
+        console.log("🔍 Checking connectivity (TURN servers will help if needed)...");
         // Set a timeout for connection attempts
         connectionTimeout = setTimeout(() => {
           if (pc.iceConnectionState === 'checking') {
-            console.log("⏱️ Connection timeout - both peers may be behind NAT");
+            console.log("⏱️ Connection taking time - TURN servers are working to establish relay...");
           }
-        }, 10000);
+        }, 15000); // Increased timeout for TURN relay
       } else if (iceState === 'failed') {
         console.log("❌ Connection failed - both peers likely behind NAT/firewall");
         if (connectionTimeout) clearTimeout(connectionTimeout);
@@ -66,9 +96,13 @@ export default function useWebRTC(user) {
       }
     };
 
-    // Simplified error handling - only log critical errors
+    // Enhanced error handling with TURN server status
     pc.onicecandidateerror = (event) => {
-      console.log("ℹ️ ICE server issue:", event.url || 'unknown');
+      if (event.url && event.url.includes('turn')) {
+        console.log("🔄 TURN server attempting relay:", event.url);
+      } else {
+        console.log("ℹ️ ICE server issue:", event.url || 'unknown');
+      }
     };
 
     return pc;
