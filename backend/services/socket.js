@@ -32,6 +32,107 @@ export default function initSocket(io) {
   });
 
   io.on("connection", (socket) => {
+    // =========================
+    // Minimal Call Signaling (new)
+    // =========================
+    // In-memory call registry: NOT for production clustering (no Redis) – simple & volatile
+    // Structure: callId -> { callerId, calleeId, status: 'request'|'accepted'|'ended' }
+    if (!io.activeCalls) io.activeCalls = new Map();
+
+    function safeRelay(toUserId, event, payload) {
+      if (!toUserId) return;
+      io.to(toUserId).emit(event, payload);
+    }
+
+    socket.on('call:request', ({ callId, toUserId, fromName }) => {
+      const fromUserId = socket.data.user?.id;
+      if (!fromUserId || !toUserId || !callId) return;
+      // Busy check: if callee already in a call (request or accepted)
+      for (const [cid, meta] of io.activeCalls.entries()) {
+        if (meta.calleeId === toUserId && meta.status !== 'ended') {
+          safeRelay(fromUserId, 'call:busy', { callId });
+          return;
+        }
+      }
+      io.activeCalls.set(callId, { callerId: fromUserId, calleeId: toUserId, status: 'request' });
+      safeRelay(toUserId, 'call:request', { callId, fromUserId, fromName: fromName || socket.data.user?.name || 'Caller' });
+    });
+
+    socket.on('call:cancel', ({ callId }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta) return; // nothing to cancel
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.callerId) return; // only caller cancels
+      safeRelay(meta.calleeId, 'call:cancel', { callId });
+      io.activeCalls.delete(callId);
+    });
+
+    socket.on('call:reject', ({ callId }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta) return;
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.calleeId) return; // only callee rejects
+      safeRelay(meta.callerId, 'call:reject', { callId });
+      io.activeCalls.delete(callId);
+    });
+
+    socket.on('call:accept', ({ callId }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta) return;
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.calleeId) return; // only callee accepts
+      meta.status = 'accepted';
+      safeRelay(meta.callerId, 'call:accept', { callId });
+    });
+
+    socket.on('call:offer', ({ callId, sdp }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta || meta.status !== 'accepted') return;
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.callerId) return; // only caller sends offer
+      safeRelay(meta.calleeId, 'call:offer', { callId, sdp });
+    });
+
+    socket.on('call:answer', ({ callId, sdp }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta || meta.status !== 'accepted') return;
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.calleeId) return; // only callee answers
+      safeRelay(meta.callerId, 'call:answer', { callId, sdp });
+    });
+
+    socket.on('call:ice', ({ callId, candidate }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta) return;
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.callerId && fromUserId !== meta.calleeId) return; // only participants
+      const target = fromUserId === meta.callerId ? meta.calleeId : meta.callerId;
+      safeRelay(target, 'call:ice', { callId, candidate });
+    });
+
+    socket.on('call:end', ({ callId, reason }) => {
+      const meta = io.activeCalls.get(callId);
+      if (!meta) return;
+      const fromUserId = socket.data.user?.id;
+      if (fromUserId !== meta.callerId && fromUserId !== meta.calleeId) return; // only participants
+      const other = fromUserId === meta.callerId ? meta.calleeId : meta.callerId;
+      safeRelay(other, 'call:end', { callId, reason: reason || 'ended' });
+      io.activeCalls.delete(callId);
+    });
+
+    socket.on('disconnect', () => {
+      // Clean up any calls this user was part of
+      const userId = socket.data.user?.id;
+      if (!userId || !io.activeCalls?.size) return;
+      for (const [callId, meta] of io.activeCalls.entries()) {
+        if (meta.callerId === userId || meta.calleeId === userId) {
+          const other = meta.callerId === userId ? meta.calleeId : meta.callerId;
+            safeRelay(other, 'call:end', { callId, reason: 'peer-disconnected' });
+            io.activeCalls.delete(callId);
+        }
+      }
+    });
+
     // Basic connection log
     if (socket.data?.user) {
       console.log("🔌 Socket connected:", socket.id, socket.data.user);

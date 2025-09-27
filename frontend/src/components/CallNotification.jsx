@@ -1,59 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { getSocket } from '../utils/socket';
+import { useCall } from '../hooks/useCall';
 
 export default function CallNotification() {
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [showNotification, setShowNotification] = useState(false);
-  const user = useSelector((state) => state.auth.user);
+  const user = useSelector((s) => s.auth.user);
   const navigate = useNavigate();
+  const { state, callId, acceptCall, rejectCall } = useCall();
+  const [appointmentId] = useState(null); // placeholder: integrate appointment mapping if needed
 
-  useEffect(() => {
-    if (user?.role !== 'patient') return;
-
-    const socket = getSocket();
-    
-    const handleIncomingCall = (data) => {
-      console.log('📞 Incoming call notification received:', data);
-      console.log('📞 Notification details:', {
-        hasData: !!data,
-        from: data?.from,
-        appointmentId: data?.appointmentId,
-        userRole: user?.role,
-        socketConnected: socket?.connected
-      });
-      setIncomingCall(data);
-      setShowNotification(true);
-      
-      // Auto-hide after 30 seconds
-      setTimeout(() => {
-        setShowNotification(false);
-        setIncomingCall(null);
-      }, 30000);
-    };
-
-    socket.on('webrtc:start-call', handleIncomingCall);
-
-    return () => {
-      socket.off('webrtc:start-call', handleIncomingCall);
-    };
-  }, [user]);
-
-  const acceptCall = () => {
-    if (incomingCall?.appointmentId) {
-      navigate(`/call/${incomingCall.appointmentId}`);
-      setShowNotification(false);
-      setIncomingCall(null);
-    }
-  };
-
-  const declineCall = () => {
-    setShowNotification(false);
-    setIncomingCall(null);
-  };
-
-  if (!showNotification || !incomingCall) return null;
+  if (user?.role !== 'patient') return null;
+  const isRinging = state === 'ringing';
+  if (!isRinging) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -68,17 +26,20 @@ export default function CallNotification() {
             Incoming Call
           </h3>
           <p className="text-gray-600 mb-4">
-            Doctor is calling you for your appointment
+            Incoming call
           </p>
           <div className="flex space-x-3">
             <button
-              onClick={declineCall}
+              onClick={rejectCall}
               className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
               Decline
             </button>
             <button
-              onClick={acceptCall}
+              onClick={() => {
+                acceptCall();
+                if (appointmentId) navigate(`/call/${appointmentId}`); else navigate('/call/temp');
+              }}
               className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
             >
               Accept

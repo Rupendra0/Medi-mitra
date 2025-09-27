@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from 'react-redux';
-import { io } from "socket.io-client";
+// Use shared socket helper instead of creating a new raw client each time
+import { getSocket } from '../utils/socket';
 
 import { loginSuccess } from '../utils/authSlice';
 import api from '../utils/api';
@@ -37,11 +38,9 @@ function Login() {
       window.__AUTH_TOKEN = res.data.token;
       localStorage.setItem('authToken', res.data.token);
       
-      const socket = io(API_URL, {
-        withCredentials: true,
-        auth: { token: res.data.token },
-      });
-
+      // Single shared socket instance registration
+      const socket = getSocket();
+      socket.auth = { token: res.data.token }; // update auth for late init
       socket.emit("register", {
         userId: res.data.user?._id,
         role: res.data.user?.role,

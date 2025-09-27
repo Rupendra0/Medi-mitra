@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useEffect } from "react";
-import io from "socket.io-client";
+import { getSocket } from "../utils/socket";
 import ReactMarkdown from "react-markdown";
 import AnimatedButton from "./AnimatedButton";
 import logo from "../logo.png";
@@ -33,12 +33,8 @@ export default function HomeAssistant() {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    // Connect to Socket.io server
-    const s = io(API_URL);
+    const s = getSocket();
     setSocket(s);
-    return () => {
-      s.disconnect();
-    };
   }, []);
 
   // Start video call (basic demo)
