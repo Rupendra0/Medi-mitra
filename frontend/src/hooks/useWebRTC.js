@@ -537,6 +537,16 @@ export default function useWebRTC(user) {
           );
           console.log("✅ Remote answer applied successfully");
           hasRemoteAnswerRef.current = true; // Mark that we have the remote answer
+          
+          // In classical mode, give a moment for ICE to establish, then check status
+          if (CLASSIC_P2P_MODE) {
+            setTimeout(() => {
+              if (pcRef.current) {
+                console.log(`🔍 Classical P2P status check - ICE: ${pcRef.current.iceConnectionState}, Signaling: ${pcRef.current.signalingState}`);
+              }
+            }, 3000);
+          }
+          
           setCallState('active'); // Call is now active
         }
       } catch (err) {
