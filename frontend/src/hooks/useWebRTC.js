@@ -14,6 +14,7 @@ export default function useWebRTC(user) {
   const localStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
   const answeredOfferRef = useRef(null); // Track which offer we've answered
+  const hasRemoteAnswerRef = useRef(false); // Track if caller already applied remote answer
   const processedCandidates = useRef(new Set()); // Track processed ICE candidates
   const callSessionRef = useRef(null); // Track active call sessions
   const retryCountRef = useRef(0); // Track connection retry attempts
@@ -309,6 +310,11 @@ export default function useWebRTC(user) {
     iceEscalationTimeoutRef.current = setTimeout(() => {
       if (!pc) return;
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') return;
+      // Do not escalate once remote answer applied and we are in post-answer stabilization window
+      if (hasRemoteAnswerRef.current) {
+        console.log('⏳ Skipping escalation – remote answer already applied; waiting for connectivity');
+        return;
+      }
       if (stage < ICE_STAGES.length - 1) {
         iceStageRef.current = stage + 1;
         console.log(`⚠️ Escalating ICE to stage ${iceStageRef.current}`);
@@ -353,11 +359,15 @@ export default function useWebRTC(user) {
     pcRef.current = buildPeerConnectionForStage(iceStageRef.current);
     localTracks.forEach(t => pcRef.current.addTrack(t, localStreamRef.current));
     // If we are the caller and already attempted, re-create and send a new offer
-    if (callState === 'answering' || callState === 'idle') {
-      if (user?.role === 'doctor' && remoteUserIdRef.current) {
-        console.log('🔁 Re-sending offer after escalation stage', iceStageRef.current);
-        startCall(remoteUserIdRef.current);
+    if (!hasRemoteAnswerRef.current) { // Only resend offer prior to having remote answer
+      if (callState === 'answering' || callState === 'idle') {
+        if (user?.role === 'doctor' && remoteUserIdRef.current) {
+          console.log('🔁 Re-sending offer after escalation stage', iceStageRef.current);
+          startCall(remoteUserIdRef.current);
+        }
       }
+    } else {
+      console.log('🔁 Skipping re-offer on rebuild; remote answer already applied.');
     }
   };
 
@@ -477,6 +487,7 @@ export default function useWebRTC(user) {
             new RTCSessionDescription(payload.answer)
           );
           console.log("✅ Remote answer applied successfully");
+          hasRemoteAnswerRef.current = true; // Mark that we have the remote answer
           setCallState('active'); // Call is now active
         }
       } catch (err) {
@@ -712,12 +723,31 @@ export default function useWebRTC(user) {
       setCallState('answering');
       console.log("📞 Starting answer process - PC state:", pcRef.current.signalingState);
       
-      // Only set remote description if we haven't already
+      // Set remote description only if still stable (no offer applied yet)
       if (pcRef.current.signalingState === 'stable') {
-        await pcRef.current.setRemoteDescription(
-          new RTCSessionDescription(incomingOffer.offer)
-        );
-        console.log("✅ Remote description set, PC state now:", pcRef.current.signalingState);
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+          console.log("✅ Remote description set, PC state now:", pcRef.current.signalingState);
+        } catch (e) {
+          console.error('❌ Failed setting remote description while answering:', e);
+          setCallState('idle');
+          return;
+        }
+      } else if (pcRef.current.signalingState === 'have-remote-offer') {
+        // Already fine
+      } else if (pcRef.current.signalingState === 'have-local-offer') {
+        // We somehow created an offer (perhaps due to escalation) — rollback then apply
+        try {
+          await pcRef.current.setLocalDescription({ type: 'rollback' });
+          console.log('↩️ Rolled back local offer to apply remote offer');
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+        } catch (e) {
+          console.error('❌ Rollback/apply failed:', e);
+          setCallState('idle');
+          return;
+        }
+      } else {
+        console.warn('⚠️ Unexpected signaling state during answer:', pcRef.current.signalingState);
       }
 
       // Ensure we have local media and attach tracks before creating answer
@@ -736,7 +766,7 @@ export default function useWebRTC(user) {
         }
       }
 
-      // Only create answer if in the correct state
+      // Only create answer if in the correct state (have-remote-offer)
       if (pcRef.current.signalingState === 'have-remote-offer') {
         const answer = await pcRef.current.createAnswer({
           offerToReceiveAudio: true,
@@ -758,7 +788,11 @@ export default function useWebRTC(user) {
         setCallState('active');
         setIncomingOffer(null); // Clear the offer after answering
       } else {
-        console.error("❌ Cannot create answer - PC state:", pcRef.current.signalingState);
+        console.error("❌ Cannot create answer - invalid PC state:", pcRef.current.signalingState);
+        // If we somehow lost the remote offer but have local offer, attempt restart negotiation path (optional)
+        if (pcRef.current.signalingState === 'stable') {
+          console.log('🔄 Stable without remote offer; ignoring answer attempt.');
+        }
         setCallState('idle');
       }
     } catch (err) {
