@@ -7,7 +7,6 @@ import { logoutSuccess } from '../utils/authSlice';
 import api from '../utils/api';
 import HomeAssistant from "../components/HomeAssistant";
 import AnimatedButton from "../components/AnimatedButton";
-import Footer from "../components/Footer";
 import logo from "../logo.png";
 
 function Home() {
@@ -103,14 +102,98 @@ function Home() {
         </div>
       </section>
 
+      {/* Features Section */}
+      <section className="py-16 px-8 bg-gradient-to-b from-transparent to-slate-900/20">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12 text-white">
+            Why Choose Medi Mitra?
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10"
+            >
+              <div className="text-4xl mb-4">🏥</div>
+              <h3 className="text-xl font-semibold mb-3 text-white">Expert Doctors</h3>
+              <p className="text-gray-300">Connect with qualified healthcare professionals from anywhere</p>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10"
+            >
+              <div className="text-4xl mb-4">🤖</div>
+              <h3 className="text-xl font-semibold mb-3 text-white">AI Assistant</h3>
+              <p className="text-gray-300">Get instant health insights and symptom analysis powered by AI</p>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10"
+            >
+              <div className="text-4xl mb-4">📱</div>
+              <h3 className="text-xl font-semibold mb-3 text-white">Easy Access</h3>
+              <p className="text-gray-300">Simple, user-friendly interface designed for rural communities</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* AI Health Assistant Section */}
       <section className="py-16 px-8">
         <h2 className="text-3xl font-bold text-center mb-10" style={{ color: 'var(--color-primary)' }}>
           AI Health Assistant
         </h2>
         <HomeAssistant />
       </section>
-      
-      <Footer />
+
+      {/* How It Works Section */}
+      <section className="py-16 px-8 bg-gradient-to-t from-transparent to-slate-900/20">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12 text-white">
+            How It Works
+          </h2>
+          <div className="grid md:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="bg-teal-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold">1</span>
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Sign Up</h3>
+              <p className="text-sm text-gray-300">Create your account in minutes</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-teal-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold">2</span>
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Book Appointment</h3>
+              <p className="text-sm text-gray-300">Schedule with available doctors</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-teal-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold">3</span>
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Video Call</h3>
+              <p className="text-sm text-gray-300">Connect via secure video consultation</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-teal-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold">4</span>
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Get Treatment</h3>
+              <p className="text-sm text-gray-300">Receive prescription and follow-up care</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
