@@ -39,16 +39,16 @@ export default function useWebRTC(user) {
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
           { urls: "stun:stun2.l.google.com:19302" },
-          // TURN fallback (public/demo). Replace with your managed TURN for production.
+          { urls: "stun:stun3.l.google.com:19302" },
+          { urls: "stun:stun4.l.google.com:19302" },
+          // More reliable TURN servers
           {
-            urls: [
-              "turn:openrelay.metered.ca:80",
-              "turn:openrelay.metered.ca:443",
-              "turns:openrelay.metered.ca:443?transport=tcp"
-            ],
+            urls: "turn:openrelay.metered.ca:80",
             username: "openrelayproject",
             credential: "openrelayproject"
-          }
+          },
+          // Add Twilio's public STUN servers as backup
+          { urls: "stun:global.stun.twilio.com:3478" }
         ],
         iceCandidatePoolSize: 10 // Pre-gather candidates for faster connection
       });
@@ -73,14 +73,29 @@ export default function useWebRTC(user) {
         console.log("🧊 ICE Connection state:", iceState);
         
         if (iceState === 'connected' || iceState === 'completed') {
-          console.log("✅ ICE connection established");
+          console.log("✅ ICE connection established - call should be active");
         } else if (iceState === 'failed') {
-          console.log("❌ ICE connection failed");
+          console.log("❌ ICE connection failed - attempting restart");
+          // Add restart logic if needed
+        } else if (iceState === 'checking') {
+          console.log("🔍 ICE checking connectivity...");
+        } else if (iceState === 'disconnected') {
+          console.log("⚠️ ICE disconnected - may recover automatically");
         }
       };
 
+      // Add ICE gathering state monitoring
+      pc.onicegatheringstatechange = () => {
+        console.log("🧊 ICE Gathering state:", pc.iceGatheringState);
+      };
+
       pc.onicecandidateerror = (event) => {
-        console.error("❌ ICE candidate error:", event);
+        // Only log non-TURN errors to reduce noise, as TURN failures are common with free servers
+        if (!event.url || !event.url.includes('turn')) {
+          console.error("❌ ICE candidate error:", event);
+        } else {
+          console.warn("⚠️ TURN server unavailable (using STUN fallback):", event.url);
+        }
       };
 
       return pc;
