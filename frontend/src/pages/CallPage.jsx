@@ -14,6 +14,15 @@ export default function CallPage() {
   const { localVideoRef, remoteVideoRef, startCall, answerCall, incomingOffer, callState, endCall, connectionQuality } =
     useWebRTC(user);
 
+  // Debug logging
+  console.log("🔍 CallPage Debug:", {
+    userRole: user?.role,
+    callState,
+    resolvedPatientId,
+    appointmentId,
+    userObject: user
+  });
+
   // Patient auto-answers when an offer arrives (only once per offer)
   useEffect(() => {
     if (user?.role === "patient" && incomingOffer && callState === "incoming") {
@@ -204,8 +213,13 @@ export default function CallPage() {
         <div className="flex items-center justify-center px-3 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 w-full">
           <div className="flex items-center justify-center space-x-3 sm:space-x-4 md:space-x-6 max-w-full overflow-x-auto">
             
-            {/* Doctor Start Call Button - Always visible for debugging */}
-            {user?.role === "doctor" && callState !== 'active' && (
+            {/* Debug Info */}
+            <div className="bg-red-600 text-white p-2 rounded text-xs">
+              Role: {user?.role || 'none'} | State: {callState} | PatientId: {resolvedPatientId ? 'yes' : 'no'}
+            </div>
+
+            {/* Doctor Start Call Button - ALWAYS VISIBLE FOR DOCTORS */}
+            {user?.role === "doctor" && (
               <button
                 onClick={handleDoctorStart}
                 disabled={!resolvedPatientId}
@@ -223,6 +237,13 @@ export default function CallPage() {
                   {!resolvedPatientId ? 'Loading...' : 'Start'}
                 </span>
               </button>
+            )}
+
+            {/* Patient Info */}
+            {user?.role === "patient" && (
+              <div className="bg-blue-600 text-white px-4 py-2 rounded">
+                Patient - Waiting for doctor to start call
+              </div>
             )}
 
             {/* Patient Auto-Answer Indicator */}
