@@ -86,12 +86,31 @@ export default function useWebRTC(user) {
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [
-        // Primary STUN servers (most reliable)
+        // Primary STUN servers (most reliable, unlimited free)
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
         { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
         
-        // Primary TURN servers (working well based on logs)
+        // High-quality TURN servers (more reliable free options)
+        {
+          urls: ["turn:relay1.expressturn.com:3478"],
+          username: "efCZWX3MTI071W2V6N",
+          credential: "mGWa8dVKpR4FgpE"
+        },
+        {
+          urls: ["turn:a.relay.metered.ca:80", "turn:a.relay.metered.ca:80?transport=tcp"],
+          username: "a71c31d416502d8c9b8dec95",
+          credential: "2lrtyK5RqnEIg5hx"
+        },
+        {
+          urls: ["turn:a.relay.metered.ca:443", "turn:a.relay.metered.ca:443?transport=tcp"],
+          username: "a71c31d416502d8c9b8dec95",
+          credential: "2lrtyK5RqnEIg5hx"
+        },
+        
+        // Fallback TURN servers (original working ones as backup)
         {
           urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:80?transport=tcp"],
           username: "openrelayproject",
@@ -103,23 +122,16 @@ export default function useWebRTC(user) {
           credential: "openrelayproject"
         },
         
-        // Additional reliable TURN servers with working credentials
+        // Additional free TURN servers for redundancy
         {
-          urls: ["turn:coturn.sua.io:3478", "turns:coturn.sua.io:5349"],
-          username: "coturn",
-          credential: "coturn"
+          urls: ["turn:turn.bistri.com:80"],
+          username: "homeo",
+          credential: "homeo"
         },
         {
-          urls: "turn:turnserver.stunprotocol.org:3478",
-          username: "suus",
-          credential: "yieChoi0PeoKo6d6Wuh7OoPma"
-        },
-        
-        // Backup TURN servers
-        {
-          urls: ["turn:numb.viagenie.ca:3478", "turn:numb.viagenie.ca:3478?transport=tcp"],
-          username: "webrtc@live.com",
-          credential: "muazkh"
+          urls: ["turn:turn.anyfirewall.com:443?transport=tcp"],
+          username: "webrtc",
+          credential: "webrtc"
         }
       ],
       iceCandidatePoolSize: 10, // Pre-gather more candidates for better connectivity
@@ -163,10 +175,20 @@ export default function useWebRTC(user) {
       } else if (iceState === 'checking') {
         console.log("🔍 Checking connectivity (TURN servers will help if needed)...");
         setConnectionQuality('fair');
-        // Connection is progressing well - let it complete naturally without timeout interference
-        console.log("🔄 Connection progressing well - allowing natural WebRTC connection process");
-        // Temporarily disabled timeout since connections are reaching connecting state consistently
-        // connectionTimeout = setTimeout(() => { ... }, 25000);
+        // Set reasonable timeout for ICE checking phase
+        if (connectionTimeout) clearTimeout(connectionTimeout);
+        connectionTimeout = setTimeout(() => {
+          if (pc.iceConnectionState === 'checking') {
+            console.log("⏰ ICE checking timeout - forcing reconnection with different servers");
+            retryCountRef.current += 1;
+            if (retryCountRef.current <= 5) {
+              resetPeerConnection();
+              if (user?.role === 'doctor') {
+                setTimeout(() => startCall(remoteUserIdRef.current), 1000);
+              }
+            }
+          }
+        }, 15000); // 15 second timeout for checking phase
       } else if (iceState === 'failed') {
         console.log("❌ Connection failed");
         if (connectionTimeout) clearTimeout(connectionTimeout);
@@ -235,6 +257,24 @@ export default function useWebRTC(user) {
       userId: user?._id,
       userRole: user?.role,
       socketId: socketRef.current?.id
+    });
+
+    // Add socket health monitoring
+    socketRef.current.on('connect', () => {
+      console.log("✅ Socket reconnected successfully");
+    });
+
+    socketRef.current.on('disconnect', (reason) => {
+      console.log("❌ Socket disconnected:", reason);
+      if (reason === 'io server disconnect') {
+        // Server-side disconnect, manual reconnection needed
+        console.log("🔄 Attempting manual socket reconnection...");
+        socketRef.current.connect();
+      }
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.log("❌ Socket connection error:", error.message);
     });
 
     if (user?._id) {
