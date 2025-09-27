@@ -101,7 +101,7 @@ export default function useWebRTC(user) {
       ],
       iceCandidatePoolSize: 10, // Pre-gather more candidates for better connectivity
       iceTransportPolicy: 'all', // Allow both relay and direct connections
-      bundlePolicy: 'max-bundle',
+      bundlePolicy: 'balanced', // More compatible than max-bundle
       rtcpMuxPolicy: 'require'
     });
 
@@ -458,8 +458,51 @@ export default function useWebRTC(user) {
         }
       }
 
-      const offer = await pcRef.current.createOffer();
-      await pcRef.current.setLocalDescription(offer);
+      let offer = await pcRef.current.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      
+      try {
+        await pcRef.current.setLocalDescription(offer);
+      } catch (bundleError) {
+        if (bundleError.message.includes('BUNDLE')) {
+          console.log("🔄 Bundle error detected, creating simplified connection...");
+          // Reset with simplified connection and retry
+          pcRef.current = createSimplePeerConnection();
+          
+          // Re-setup handlers
+          pcRef.current.ontrack = (event) => {
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = event.streams[0];
+            }
+          };
+          
+          pcRef.current.onicecandidate = (event) => {
+            if (event.candidate && remoteUserIdRef.current) {
+              socketRef.current.emit("webrtc:ice-candidate", {
+                candidate: event.candidate,
+                to: remoteUserIdRef.current,
+              });
+            }
+          };
+          
+          // Re-add tracks
+          if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((track) => pcRef.current.addTrack(track, localStreamRef.current));
+          }
+          
+          // Create and set offer again with simple connection
+          const simpleOffer = await pcRef.current.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true
+          });
+          await pcRef.current.setLocalDescription(simpleOffer);
+          offer = simpleOffer; // Use the simple offer
+        } else {
+          throw bundleError; // Re-throw if not a bundle error
+        }
+      }
 
       socketRef.current.emit("webrtc:offer", {
         offer,
@@ -521,7 +564,10 @@ export default function useWebRTC(user) {
 
       // Only create answer if in the correct state
       if (pcRef.current.signalingState === 'have-remote-offer') {
-        const answer = await pcRef.current.createAnswer();
+        const answer = await pcRef.current.createAnswer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
         await pcRef.current.setLocalDescription(answer);
 
         const toUserId = incomingOffer.from;
