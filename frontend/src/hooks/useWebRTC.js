@@ -178,9 +178,35 @@ export default function useWebRTC(user) {
 
     pcRef.current.ontrack = (event) => {
       console.log('📺 Received remote track:', event.track.kind);
+      console.log('📺 Remote track details:', {
+        trackId: event.track.id,
+        trackEnabled: event.track.enabled,
+        trackReadyState: event.track.readyState,
+        streamsCount: event.streams.length,
+        hasVideoElement: !!remoteVideoRef.current
+      });
+      
       if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-        console.log('✅ Remote video stream attached');
+        const stream = event.streams[0];
+        console.log('🎥 Attaching remote stream:', {
+          streamId: stream.id,
+          videoTracks: stream.getVideoTracks().length,
+          audioTracks: stream.getAudioTracks().length,
+          active: stream.active
+        });
+        
+        remoteVideoRef.current.srcObject = stream;
+        console.log('✅ Remote video stream attached to element');
+        
+        // Force video element to play
+        remoteVideoRef.current.play().catch(e => {
+          console.warn('⚠️ Remote video autoplay failed:', e);
+        });
+      } else {
+        console.warn('⚠️ Cannot attach remote stream:', {
+          hasVideoElement: !!remoteVideoRef.current,
+          hasStream: !!event.streams[0]
+        });
       }
     };
 

@@ -223,9 +223,21 @@ export default function CallPage() {
   useEffect(() => {
     const checkRemoteStream = () => {
       if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+        const stream = remoteVideoRef.current.srcObject;
+        console.log('📺 Remote stream detected:', {
+          streamId: stream.id,
+          videoTracks: stream.getVideoTracks().length,
+          audioTracks: stream.getAudioTracks().length,
+          active: stream.active,
+          videoElement: remoteVideoRef.current.tagName
+        });
         setHasRemoteStream(true);
-        console.log('📺 Remote stream detected, showing video');
+        console.log('✅ Remote video element should now be visible');
       } else {
+        console.log('❌ No remote stream:', {
+          hasVideoElement: !!remoteVideoRef.current,
+          hasSrcObject: !!remoteVideoRef.current?.srcObject
+        });
         setHasRemoteStream(false);
       }
     };
