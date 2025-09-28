@@ -1,6 +1,6 @@
 // frontend/src/pages/CallPage.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import useWebRTC from '../hooks/useWebRTC';
 import '../styles/callpage.css';
@@ -13,10 +13,11 @@ function peerLabel(patientId, user){
 }
 
 export default function CallPage() {
-  const { id: appointmentId } = useParams(); // appointmentId reserved for future use
+  const { id: appointmentId } = useParams();
   const [searchParams] = useSearchParams();
   const [resolvedPatientId] = useState(searchParams.get("patientId"));
   const user = useSelector((state) => state.auth.user);
+  const navigate = useNavigate();
 
   // Use unified WebRTC hook (original project hook)
   const {
@@ -33,6 +34,7 @@ export default function CallPage() {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [reason, setReason] = useState('');
+  const [appointmentData, setAppointmentData] = useState(null);
 
   // Manual refs for draggable local preview wrapper
   const remoteWrapperRef = useRef(null);
@@ -42,10 +44,57 @@ export default function CallPage() {
 
   const isValidMongoId = (id) => /^[a-f0-9]{24}$/i.test(id);
 
+  // Fetch appointment data to get patient/doctor IDs
+  useEffect(() => {
+    if (appointmentId && isValidMongoId(appointmentId)) {
+      console.log('📋 Fetching appointment data for:', appointmentId);
+      
+      // Mock appointment data for testing - replace with API call
+      const mockData = {
+        _id: appointmentId,
+        patientId: resolvedPatientId || '674347dd5c2df341db6e291e', // example patient ID
+        doctorId: '674347dd5c2df341db6e291f', // example doctor ID
+        status: 'active'
+      };
+      
+      setTimeout(() => {
+        setAppointmentData(mockData);
+        console.log('📋 Appointment data loaded:', mockData);
+        console.log('🔧 WebRTC Test Info:', {
+          userRole: user?.role,
+          userId: user?.id,
+          appointmentId,
+          patientId: mockData.patientId,
+          doctorId: mockData.doctorId,
+          targetUser: user?.role === 'doctor' ? mockData.patientId : mockData.doctorId
+        });
+      }, 100);
+    }
+  }, [appointmentId, resolvedPatientId, user]);
+
+  // Auto-start call for doctor, auto-answer for patient with incoming offer
+  useEffect(() => {
+    if (!appointmentData) return;
+
+    if (user?.role === 'doctor' && callState === 'idle') {
+      // Doctor initiates the call
+      const targetUserId = appointmentData.patientId;
+      if (targetUserId && isValidMongoId(targetUserId)) {
+        console.log(`🔄 Doctor starting call to patient:`, targetUserId);
+        startCall(targetUserId);
+      }
+    } else if (user?.role === 'patient' && incomingOffer && callState === 'incoming') {
+      // Patient answers incoming call
+      console.log(`🔄 Patient answering incoming call`);
+      answerCall();
+    }
+  }, [appointmentData, callState, incomingOffer, user, startCall, answerCall]);
+
   const handleDoctorStart = () => {
-    if (user?.role === 'doctor' && resolvedPatientId && isValidMongoId(resolvedPatientId)) {
-      console.log('Initializing call with patient:', resolvedPatientId);
-      startCall(resolvedPatientId);
+    const targetId = appointmentData?.patientId || resolvedPatientId;
+    if (user?.role === 'doctor' && targetId && isValidMongoId(targetId)) {
+      console.log('🔄 Manual call start with patient:', targetId);
+      startCall(targetId);
     }
   };
 
@@ -148,6 +197,17 @@ export default function CallPage() {
     }
   };
 
+  // Navigate back to dashboard after call ends
+  useEffect(() => {
+    if (callState === 'idle' && elapsed > 0) {
+      // Call ended, navigate back after a short delay
+      setTimeout(() => {
+        const dashboard = user?.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard';
+        navigate(dashboard);
+      }, 2000);
+    }
+  }, [callState, elapsed, user, navigate]);
+
   const computedCallState = () => {
     if (incomingOffer && callState === 'incoming') return 'ringing';
     return callState;
@@ -160,11 +220,29 @@ export default function CallPage() {
           {callState === 'active' ? (
             <video ref={remoteVideoRef} className="remote-video" autoPlay playsInline />
           ) : (
-            <div className="remote-placeholder" style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#bbb',fontSize:'1.2rem'}}>
-              {computedCallState() === 'calling' && 'Calling…'}
-              {computedCallState() === 'ringing' && 'Incoming Call'}
-              {computedCallState() === 'idle' && user?.role === 'doctor' && 'Start a Call'}
-              {computedCallState() === 'idle' && user?.role === 'patient' && 'Waiting'}
+            <div className="remote-placeholder" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'#bbb',fontSize:'1.2rem'}}>
+              <div style={{marginBottom:'20px'}}>
+                {computedCallState() === 'calling' && 'Calling…'}
+                {computedCallState() === 'ringing' && 'Incoming Call'}
+                {computedCallState() === 'idle' && user?.role === 'doctor' && 'Ready to Start Call'}
+                {computedCallState() === 'idle' && user?.role === 'patient' && 'Waiting for Call'}
+              </div>
+              
+              {/* Debug Information */}
+              <div style={{fontSize:'0.8rem', background:'rgba(0,0,0,0.7)', padding:'10px', borderRadius:'8px', margin:'20px', maxWidth:'400px'}}>
+                <div><strong>Debug Info:</strong></div>
+                <div>Role: {user?.role}</div>
+                <div>Call State: {callState}</div>
+                <div>Appointment: {appointmentId}</div>
+                {appointmentData && (
+                  <>
+                    <div>Target: {user?.role === 'doctor' ? appointmentData.patientId : appointmentData.doctorId}</div>
+                    <div>Patient: {appointmentData.patientId}</div>
+                    <div>Doctor: {appointmentData.doctorId}</div>
+                  </>
+                )}
+                {incomingOffer && <div style={{color:'#4ade80'}}>📞 Incoming Offer Available</div>}
+              </div>
             </div>
           )}
 

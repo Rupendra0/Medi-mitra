@@ -28,10 +28,12 @@ mongoose.connect(MONGO_URI)
     console.log("⚠️ Server will continue without MongoDB connection");
   });
 
-// ✅ CORS config
+// ✅ CORS config - Allow frontend development server
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
 }));
 
 app.use(bodyParser.json());
@@ -84,7 +86,7 @@ const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -123,7 +125,7 @@ function getLocalIPv4() {
 }
 
 // Start server
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 }).on('error', (err) => {
   console.error('❌ Server failed to start:', err.message);

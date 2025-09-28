@@ -194,6 +194,31 @@ export default function initSocket(io) {
       });
     });
 
+    // ✅ WebRTC signaling events (for useWebRTC.js compatibility)
+    socket.on("webrtc:offer", ({ to, offer, from }) => {
+      console.log(`📞 WebRTC offer from ${from || socket.data.user?.id} to ${to}`);
+      io.to(to).emit("webrtc:offer", {
+        from: from || socket.data.user?.id,
+        offer,
+      });
+    });
+
+    socket.on("webrtc:answer", ({ to, answer, from }) => {
+      console.log(`📞 WebRTC answer from ${from || socket.data.user?.id} to ${to}`);
+      io.to(to).emit("webrtc:answer", {
+        from: from || socket.data.user?.id,
+        answer,
+      });
+    });
+
+    socket.on("webrtc:ice-candidate", ({ to, candidate, from }) => {
+      console.log(`📞 ICE candidate from ${from || socket.data.user?.id} to ${to}`);
+      io.to(to).emit("webrtc:ice-candidate", {
+        from: from || socket.data.user?.id,
+        candidate,
+      });
+    });
+
     // ✅ User registration / join rooms
     socket.on("join", (userId) => {
       if (userId) socket.join(userId);
