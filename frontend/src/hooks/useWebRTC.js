@@ -14,6 +14,7 @@ export default function useWebRTC(user) {
   const socketRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
+  const queuedCandidatesRef = useRef([]); // Queue ICE candidates until remote description is set
 
   // Enhanced ICE servers for better connectivity
   const iceServers = [
@@ -123,16 +124,36 @@ export default function useWebRTC(user) {
     if (pcRef.current && payload?.answer) {
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
       setCallState('active');
+      
+      // Process any queued ICE candidates
+      console.log(`📥 Processing ${queuedCandidatesRef.current.length} queued ICE candidates`);
+      for (const candidate of queuedCandidatesRef.current) {
+        try {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log('✅ Queued ICE candidate processed');
+        } catch (error) {
+          console.warn('⚠️ Failed to process queued candidate:', error);
+        }
+      }
+      queuedCandidatesRef.current = []; // Clear queue
     }
   };
 
-  // Handle ICE candidate
+  // Handle ICE candidate with queuing
   const handleIceCandidate = async (payload) => {
     try {
       if (pcRef.current && payload?.candidate) {
         console.log('📥 Adding ICE candidate:', payload.candidate.candidate?.substring(0, 50) + '...');
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-        console.log('✅ ICE candidate added successfully');
+        
+        // Check if remote description is set
+        if (pcRef.current.remoteDescription) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          console.log('✅ ICE candidate added successfully');
+        } else {
+          // Queue candidate until remote description is available
+          console.log('📦 Queueing ICE candidate - remote description not set yet');
+          queuedCandidatesRef.current.push(payload.candidate);
+        }
       }
     } catch (error) {
       console.error('❌ Error adding ICE candidate:', error);
@@ -211,6 +232,19 @@ export default function useWebRTC(user) {
       // Set remote description and create answer
       console.log('📝 Setting remote description and creating answer...');
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+      
+      // Process any queued ICE candidates now that remote description is set
+      console.log(`📥 Processing ${queuedCandidatesRef.current.length} queued ICE candidates`);
+      for (const candidate of queuedCandidatesRef.current) {
+        try {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log('✅ Queued ICE candidate processed');
+        } catch (error) {
+          console.warn('⚠️ Failed to process queued candidate:', error);
+        }
+      }
+      queuedCandidatesRef.current = []; // Clear queue
+      
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
       console.log('✅ Answer created and local description set');
