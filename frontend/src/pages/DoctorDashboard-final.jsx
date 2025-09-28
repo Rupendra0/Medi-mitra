@@ -367,9 +367,9 @@ export default function DoctorDashboard() {
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -391,10 +391,9 @@ export default function DoctorDashboard() {
             }
           </div>
         );
-      case "attended":
-        {
-          const list = Array.isArray(attendedPatients) ? attendedPatients : [];
-          return (
+      case "attended": {
+        const list = Array.isArray(attendedPatients) ? attendedPatients : [];
+        return (
             <div className="simple-card">
               <h3>Attended Patients</h3>
               {list.length === 0 ? (

@@ -27,6 +27,7 @@ export default function CallPage() {
     answerCall,
     endCall,
     retryRemoteStreamAttachment,
+    retryLocalStreamAttachment,
     incomingOffer,
     callState
   } = useWebRTC(user);
@@ -230,9 +231,20 @@ export default function CallPage() {
     }
   }, [remoteVideoRef.current, callState, retryRemoteStreamAttachment]);
 
-  // Monitor remote video stream
+  // Retry local stream attachment when video element becomes available
   useEffect(() => {
-    const checkRemoteStream = () => {
+    if (localVideoRef.current && retryLocalStreamAttachment) {
+      const attached = retryLocalStreamAttachment();
+      if (attached) {
+        console.log('📱 Successfully attached local stream to video element');
+      }
+    }
+  }, [localVideoRef.current, retryLocalStreamAttachment]);
+
+  // Monitor remote and local video streams
+  useEffect(() => {
+    const checkStreams = () => {
+      // Check remote stream
       if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
         const stream = remoteVideoRef.current.srcObject;
         console.log('📺 Remote stream detected:', {
@@ -251,11 +263,30 @@ export default function CallPage() {
         });
         setHasRemoteStream(false);
       }
+
+      // Check local stream
+      if (localVideoRef.current) {
+        if (localVideoRef.current.srcObject) {
+          const stream = localVideoRef.current.srcObject;
+          console.log('📱 Local stream detected:', {
+            streamId: stream.id,
+            videoTracks: stream.getVideoTracks().length,
+            audioTracks: stream.getAudioTracks().length,
+            active: stream.active
+          });
+        } else {
+          console.log('❌ No local stream:', {
+            hasVideoElement: !!localVideoRef.current,
+            hasSrcObject: false,
+            userRole: user?.role
+          });
+        }
+      }
     };
 
-    const interval = setInterval(checkRemoteStream, 500);
+    const interval = setInterval(checkStreams, 500);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   // Navigate back to dashboard after call ends
   useEffect(() => {

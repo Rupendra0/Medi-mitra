@@ -49,6 +49,11 @@ export default function useWebRTC(user) {
       console.log('📝 Backup registration sent for user:', userId);
     }
 
+    // Initialize local media stream for patients to ensure camera/mic is ready
+    if (user?.role === 'patient') {
+      initializeLocalMedia();
+    }
+
     // Socket listeners
     socketRef.current.on("webrtc:offer", handleOffer);
     socketRef.current.on("webrtc:answer", handleAnswer);
@@ -243,6 +248,40 @@ export default function useWebRTC(user) {
     };
   };
 
+  // Initialize local media stream (for patients to be ready)
+  const initializeLocalMedia = async () => {
+    try {
+      if (localStreamRef.current) {
+        console.log('📱 Local media already initialized');
+        return;
+      }
+
+      console.log('🎥 Initializing patient camera and microphone...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+        audio: { echoCancellation: true, noiseSuppression: true } 
+      });
+      
+      localStreamRef.current = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        console.log('✅ Patient local video stream ready');
+      } else {
+        console.log('📦 Local video element not ready, stream stored');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize patient media:', error);
+      if (error.name === 'NotAllowedError') {
+        console.error('🚫 Camera/microphone permission denied');
+      } else if (error.name === 'NotFoundError') {
+        console.error('📷 No camera/microphone found');
+      } else if (error.name === 'NotReadableError') {
+        console.error('🔒 Camera/microphone already in use');
+      }
+    }
+  };
+
   // Start call (for doctor)
   const startCall = async (targetUserId) => {
     try {
@@ -377,6 +416,17 @@ export default function useWebRTC(user) {
     return false;
   };
 
+  // Retry local stream attachment when video element becomes available
+  const retryLocalStreamAttachment = () => {
+    if (localStreamRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
+      console.log('📱 Attaching local stream to video element');
+      localVideoRef.current.srcObject = localStreamRef.current;
+      console.log('✅ Local stream attached successfully');
+      return true;
+    }
+    return false;
+  };
+
   // End call
   const endCall = () => {
     console.log('📞 Ending call');
@@ -412,6 +462,7 @@ export default function useWebRTC(user) {
     answerCall,
     endCall,
     retryRemoteStreamAttachment,
+    retryLocalStreamAttachment,
     incomingOffer,
     callState
   };
