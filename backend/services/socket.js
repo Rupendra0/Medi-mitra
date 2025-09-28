@@ -173,7 +173,22 @@ export default function initSocket(io) {
 
     // ✅ Incoming call (doctor → patient)
     socket.on("webrtc:start-call", ({ patientId, to, appointmentId, fromUserName }) => {
-      const target = patientId || to; // frontend may send either field
+      let target = patientId || to; // frontend may send either field
+      
+      // 🔧 CRITICAL FIX: Check for currently connected patient with 'patient' role
+      // Override appointment patientId with actual online patient
+      const connectedSockets = Array.from(io.sockets.sockets.values());
+      const activePatient = connectedSockets.find(s => 
+        s.data?.user?.role === 'patient' && 
+        s.connected
+      );
+      
+      if (activePatient?.data?.user?.id) {
+        const actualPatientId = activePatient.data.user.id;
+        console.log(`🔄 Overriding appointment patient ${target} with active patient ${actualPatientId}`);
+        target = actualPatientId;
+      }
+      
       if (!target) return;
       const payload = {
         from: socket.data.user?.id,
