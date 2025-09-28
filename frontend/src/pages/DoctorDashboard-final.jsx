@@ -232,8 +232,8 @@ export default function DoctorDashboard() {
     }));
     setIsInCall(true);
 
-    // Navigate to call page
-    navigate(`/call/${appointmentId}`);
+    // Navigate to call page with patient ID parameter
+    navigate(`/call/${appointmentId}?patientId=${patientId}`);
 
     // ✅ Emit start-call event
     socket.emit("webrtc:start-call", {

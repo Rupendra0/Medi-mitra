@@ -81,10 +81,11 @@ export default function CallPage() {
     if (!appointmentData) return;
 
     if (user?.role === 'doctor' && callState === 'idle') {
-      // Doctor initiates the call
-      const targetUserId = appointmentData.patientId;
+      // Doctor initiates the call - prefer URL patient ID over appointment data
+      const targetUserId = resolvedPatientId || appointmentData.patientId;
       if (targetUserId && isValidMongoId(targetUserId)) {
         console.log(`🔄 Doctor starting call to patient:`, targetUserId);
+        console.log(`📋 Using patientId from: ${resolvedPatientId ? 'URL params' : 'appointment data'}`);
         startCall(targetUserId);
       }
     } else if (user?.role === 'patient' && callState === 'idle') {
@@ -92,7 +93,7 @@ export default function CallPage() {
       // The useWebRTC hook should handle incoming offers
       console.log(`🔄 Patient ready to receive calls`);
     }
-  }, [appointmentData, callState, user, startCall]);
+  }, [appointmentData, callState, user, startCall, resolvedPatientId]);
 
   // Handle incoming offers (both doctor and patient auto-answer)
   useEffect(() => {
@@ -111,9 +112,10 @@ export default function CallPage() {
   }, [callState, incomingOffer, appointmentData, user]);
 
   const handleDoctorStart = () => {
-    const targetId = appointmentData?.patientId || resolvedPatientId;
+    const targetId = resolvedPatientId || appointmentData?.patientId;
     if (user?.role === 'doctor' && targetId && isValidMongoId(targetId)) {
       console.log('🔄 Manual call start with patient:', targetId);
+      console.log(`📋 Manual call using patientId from: ${resolvedPatientId ? 'URL params' : 'appointment data'}`);
       startCall(targetId);
     }
   };
