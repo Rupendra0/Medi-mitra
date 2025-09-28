@@ -51,6 +51,7 @@ export default function useWebRTC(user) {
 
     // Initialize local media stream for patients to ensure camera/mic is ready
     if (user?.role === 'patient') {
+      console.log('👤 Patient detected - initializing camera/microphone...');
       initializeLocalMedia();
     }
 
@@ -251,6 +252,8 @@ export default function useWebRTC(user) {
   // Initialize local media stream (for patients to be ready)
   const initializeLocalMedia = async () => {
     try {
+      console.log('🚀 initializeLocalMedia called for patient');
+      
       if (localStreamRef.current) {
         console.log('📱 Local media already initialized');
         return;

@@ -78,6 +78,30 @@ export default function CallPage() {
     }
   }, [appointmentId, resolvedPatientId, user]);
 
+  // Initialize camera immediately when CallPage loads
+  useEffect(() => {
+    const initializeCamera = async () => {
+      try {
+        console.log('📹 CallPage: Requesting immediate camera/microphone access...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+          audio: { echoCancellation: true, noiseSuppression: true } 
+        });
+        
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          console.log('✅ CallPage: Local video stream attached to element');
+        } else {
+          console.log('⚠️ CallPage: Local video element not ready yet');
+        }
+      } catch (error) {
+        console.error('❌ CallPage: Failed to get camera/microphone:', error);
+      }
+    };
+
+    initializeCamera();
+  }, []);
+
   // Auto-start call for doctor, patient initializes to be ready
   useEffect(() => {
     if (!appointmentData) return;
@@ -241,6 +265,18 @@ export default function CallPage() {
     }
   }, [localVideoRef.current, retryLocalStreamAttachment]);
 
+  // Debug: Log when video elements are mounted
+  useEffect(() => {
+    console.log('🎬 Video elements status:', {
+      localVideoElement: !!localVideoRef.current,
+      remoteVideoElement: !!remoteVideoRef.current,
+      localHasStream: !!localVideoRef.current?.srcObject,
+      remoteHasStream: !!remoteVideoRef.current?.srcObject,
+      callState: callState,
+      userRole: user?.role
+    });
+  }, [localVideoRef.current, remoteVideoRef.current, callState, user]);
+
   // Monitor remote and local video streams
   useEffect(() => {
     const checkStreams = () => {
@@ -308,9 +344,19 @@ export default function CallPage() {
     <div className="call-container">
       <div className="call-stage">
         <div className="remote-wrapper" ref={remoteWrapperRef} style={{position:'absolute', inset:0}}>
-          {(callState === 'active' || callState === 'connecting' || hasRemoteStream) ? (
-            <video ref={remoteVideoRef} className="remote-video" autoPlay playsInline />
-          ) : (
+          {/* Always render remote video element for WebRTC, but hide when not active */}
+          <video 
+            ref={remoteVideoRef} 
+            className="remote-video" 
+            autoPlay 
+            playsInline 
+            style={{
+              display: (callState === 'active' || callState === 'connecting' || hasRemoteStream) ? 'block' : 'none'
+            }}
+          />
+          
+          {/* Show placeholder when video is hidden */}
+          {!(callState === 'active' || callState === 'connecting' || hasRemoteStream) && (
             <div className="remote-placeholder" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'#bbb',fontSize:'1.2rem'}}>
               <div style={{marginBottom:'20px'}}>
                 {computedCallState() === 'calling' && 'Calling…'}
