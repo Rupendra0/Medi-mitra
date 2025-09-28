@@ -144,9 +144,13 @@ export default function CallPage() {
   // Handle incoming offers (both doctor and patient auto-answer)
   useEffect(() => {
     console.log(`📋 Offer check - incomingOffer: ${!!incomingOffer}, callState: ${callState}, role: ${user?.role}`);
+    
     if (incomingOffer && callState === 'incoming') {
       console.log(`🔄 ${user?.role} auto-answering incoming call`);
+      console.log(`📞 CALL FLOW: Patient answering call with offer from:`, incomingOffer.from);
       answerCall();
+    } else if (incomingOffer) {
+      console.log(`⚠️ CALL FLOW: Have offer but callState is ${callState}, not 'incoming'`);
     }
   }, [incomingOffer, callState, user, answerCall]);
 

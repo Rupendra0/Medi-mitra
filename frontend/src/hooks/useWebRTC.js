@@ -103,11 +103,17 @@ export default function useWebRTC(user) {
     console.log('📋 Current user ID:', user?._id || user?.id);
     console.log('📋 Socket connected:', socketRef.current?.connected);
     
+    // Check if we're already in a call to prevent duplicate processing
+    if (callState !== 'idle') {
+      console.log('⚠️ IGNORING OFFER: Already in call state:', callState);
+      return;
+    }
+    
     setIncomingOffer(payload);
     setCallState('incoming');
     remoteUserIdRef.current = payload.from;
     
-    console.log('✅ Offer processed, state set to incoming');
+    console.log('✅ OFFER PROCESSED: State changed from idle to incoming - ready to answer');
   };
 
   // Handle answer
@@ -249,35 +255,30 @@ export default function useWebRTC(user) {
     };
   };
 
-  // Initialize local media stream (using doctor's reliable pattern)
+  // Initialize local media stream (for patients to be ready)
   const initializeLocalMedia = async () => {
     try {
-      console.log('🚀 initializeLocalMedia called for patient - using doctor pattern');
+      console.log('🚀 initializeLocalMedia called for patient');
       
       if (localStreamRef.current) {
         console.log('📱 Local media already initialized');
-        return localStreamRef.current;
+        return;
       }
 
-      console.log('🎥 Patient requesting camera/microphone (doctor pattern)...');
+      console.log('🎥 Initializing patient camera and microphone...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+        audio: { echoCancellation: true, noiseSuppression: true } 
+      });
       
-      // Use exact same constraints as doctor's startCall
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStreamRef.current = stream;
       
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
-        console.log('✅ Patient local video stream attached (doctor pattern)');
+        console.log('✅ Patient local video stream ready');
       } else {
-        console.log('📦 Local video element not ready, stream stored for later');
+        console.log('📦 Local video element not ready, stream stored');
       }
-      
-      // Log tracks like doctor does
-      stream.getTracks().forEach(track => {
-        console.log('➕ Patient has track:', track.kind, track.label);
-      });
-      
-      return stream;
     } catch (error) {
       console.error('❌ Failed to initialize patient media:', error);
       if (error.name === 'NotAllowedError') {
