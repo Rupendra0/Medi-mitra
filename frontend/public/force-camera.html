@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test - Medi-Mitra</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0f14;
+            color: white;
+            padding: 20px;
+        }
+        .video-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        video {
+            width: 300px;
+            height: 200px;
+            background: #000;
+            border: 2px solid #00ffd0;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #00ffd0;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .status {
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .error { color: #ff4757; }
+        .success { color: #2ed573; }
+        .warning { color: #ffa726; }
+    </style>
+</head>
+<body>
+    <h1>🎥 Medi-Mitra Camera Test</h1>
+    <p>This page tests camera and microphone functionality before joining a video call.</p>
+    
+    <div>
+        <button onclick="initializeCamera()">📹 Start Camera</button>
+        <button onclick="stopCamera()">⏹ Stop Camera</button>
+        <button onclick="testWebRTC()">🔗 Test WebRTC</button>
+    </div>
+
+    <div class="video-container">
+        <div>
+            <h3>Local Video (Your Camera)</h3>
+            <video id="localVideo" autoplay muted playsinline></video>
+        </div>
+        <div>
+            <h3>Remote Video (For Incoming Stream)</h3>
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+    </div>
+
+    <div class="status">
+        <h3>Status Information</h3>
+        <div id="statusLog"></div>
+    </div>
+
+    <script>
+        let localStream = null;
+        let peerConnection = null;
+        
+        function log(message, type = 'info') {
+            const statusLog = document.getElementById('statusLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            statusLog.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            statusLog.scrollTop = statusLog.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        async function initializeCamera() {
+            try {
+                log('🎥 Requesting camera and microphone access...', 'info');
+                
+                const constraints = {
+                    video: { 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: { 
+                        echoCancellation: true, 
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                };
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                const localVideo = document.getElementById('localVideo');
+                localVideo.srcObject = localStream;
+                
+                log(`✅ Camera initialized successfully!`, 'success');
+                log(`📊 Video tracks: ${localStream.getVideoTracks().length}`, 'info');
+                log(`🎤 Audio tracks: ${localStream.getAudioTracks().length}`, 'info');
+                
+                // Log track details
+                localStream.getTracks().forEach((track, index) => {
+                    log(`Track ${index + 1}: ${track.kind} - ${track.label} (enabled: ${track.enabled})`, 'info');
+                });
+                
+            } catch (error) {
+                log(`❌ Camera initialization failed: ${error.message}`, 'error');
+                
+                if (error.name === 'NotAllowedError') {
+                    log('🚫 Permission denied - Please allow camera and microphone access', 'error');
+                } else if (error.name === 'NotFoundError') {
+                    log('📷 No camera/microphone found on this device', 'error');
+                } else if (error.name === 'NotReadableError') {
+                    log('🔒 Camera/microphone is already in use by another application', 'error');
+                } else if (error.name === 'OverconstrainedError') {
+                    log('⚙️ Camera constraints not supported', 'error');
+                }
+            }
+        }
+
+        function stopCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    track.stop();
+                    log(`⏹ Stopped ${track.kind} track`, 'warning');
+                });
+                localStream = null;
+                document.getElementById('localVideo').srcObject = null;
+                log('📷 Camera stopped', 'warning');
+            }
+        }
+
+        async function testWebRTC() {
+            try {
+                log('🔗 Testing WebRTC peer connection...', 'info');
+                
+                const iceServers = [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ];
+                
+                peerConnection = new RTCPeerConnection({ iceServers });
+                
+                peerConnection.oniceconnectionstatechange = () => {
+                    log(`🌐 ICE connection state: ${peerConnection.iceConnectionState}`, 'info');
+                };
+                
+                peerConnection.onconnectionstatechange = () => {
+                    log(`🔗 Peer connection state: ${peerConnection.connectionState}`, 'info');
+                };
+                
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                        log(`➕ Added ${track.kind} track to peer connection`, 'success');
+                    });
+                }
+                
+                log('✅ WebRTC peer connection created successfully!', 'success');
+                
+            } catch (error) {
+                log(`❌ WebRTC test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Device detection
+        function detectDevice() {
+            const userAgent = navigator.userAgent;
+            let device = 'Unknown';
+            
+            if (/tablet|ipad|playbook|silk/i.test(userAgent)) {
+                device = 'Tablet';
+            } else if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(userAgent)) {
+                device = 'Mobile';
+            } else {
+                device = 'Desktop/Laptop';
+            }
+            
+            log(`💻 Device detected: ${device}`, 'info');
+            log(`🌐 User Agent: ${userAgent}`, 'info');
+        }
+
+        // Check media device capabilities
+        async function checkMediaDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                const audioDevices = devices.filter(device => device.kind === 'audioinput');
+                
+                log(`📹 Video devices found: ${videoDevices.length}`, 'info');
+                log(`🎤 Audio devices found: ${audioDevices.length}`, 'info');
+                
+                videoDevices.forEach((device, index) => {
+                    log(`Camera ${index + 1}: ${device.label || 'Unknown Camera'}`, 'info');
+                });
+                
+                audioDevices.forEach((device, index) => {
+                    log(`Microphone ${index + 1}: ${device.label || 'Unknown Microphone'}`, 'info');
+                });
+                
+            } catch (error) {
+                log(`❌ Could not enumerate devices: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('🚀 Camera test page loaded', 'success');
+            detectDevice();
+            checkMediaDevices();
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+    </script>
+</body>
+</html>
