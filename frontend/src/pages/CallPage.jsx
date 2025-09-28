@@ -1,8 +1,8 @@
 // frontend/src/pages/CallPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { useCall } from '../hooks/useCall';
+import useWebRTC from '../hooks/useWebRTC';
 import '../styles/callpage.css';
 
 // Helper to derive a peer label (placeholder for now)
@@ -18,14 +18,29 @@ export default function CallPage() {
   const [resolvedPatientId] = useState(searchParams.get("patientId"));
   const user = useSelector((state) => state.auth.user);
 
-  const { state: callState, startCall, acceptCall, endCall, localStream, remoteStream, toggleAudio, toggleVideo, audioEnabled, videoEnabled, reason } = useCall();
+  // Use unified WebRTC hook (original project hook)
+  const {
+    localVideoRef,
+    remoteVideoRef,
+    startCall,
+    answerCall,
+    endCall,
+    incomingOffer,
+    callState
+  } = useWebRTC(user);
 
-  const localRef = React.useRef(null);
-  const remoteRef = React.useRef(null);
-  const remoteWrapperRef = React.useRef(null);
-  const dragRef = React.useRef(null);
+  // Local UI state for media toggles
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [reason, setReason] = useState('');
+
+  // Manual refs for draggable local preview wrapper
+  const remoteWrapperRef = useRef(null);
+  const dragRef = useRef(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+
+  const isValidMongoId = (id) => /^[a-f0-9]{24}$/i.test(id);
 
   const handleDoctorStart = () => {
     if (user?.role === 'doctor' && resolvedPatientId && isValidMongoId(resolvedPatientId)) {
@@ -33,39 +48,32 @@ export default function CallPage() {
     }
   };
 
-  function isValidMongoId(id){ return /^[a-f0-9]{24}$/i.test(id); }
-
-  // Lock page scroll while on call page (prevent background scroll / bounce)
+  // Lock scroll during call page view
   useEffect(() => {
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
     };
   }, []);
 
-  // Draggable local preview with boundary clamping to avoid overlap & staying in viewport
+  // Draggable local preview (wrapper around localVideoRef video)
   useEffect(() => {
     const el = dragRef.current;
     const container = remoteWrapperRef.current;
     if (!el || !container) return;
-
     let startX = 0, startY = 0, originX = 0, originY = 0;
-
-    function clamp(val, min, max){
-      return Math.min(Math.max(val, min), max);
-    }
-
-    function onPointerDown(e){
+    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+    const onPointerDown = (e) => {
       setDragging(true);
       startX = e.clientX; startY = e.clientY; originX = dragPos.x; originY = dragPos.y;
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
-    }
-    function onPointerMove(e){
+    };
+    const onPointerMove = (e) => {
       const dx = e.clientX - startX; const dy = e.clientY - startY;
       const rect = el.getBoundingClientRect();
       const contRect = container.getBoundingClientRect();
@@ -76,11 +84,11 @@ export default function CallPage() {
       const newX = clamp(originX + dx, -maxX*0.02, maxX); // allow tiny negative for shadow
       const newY = clamp(originY + dy, padding, maxY);
       setDragPos({ x: newX, y: newY });
-    }
-    function onPointerUp(){
+    };
+    const onPointerUp = () => {
       setDragging(false);
       window.removeEventListener('pointermove', onPointerMove);
-    }
+    };
     el.addEventListener('pointerdown', onPointerDown);
     return () => {
       el.removeEventListener('pointerdown', onPointerDown);
@@ -91,16 +99,13 @@ export default function CallPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedPatientId]);
 
-  const humanState = (s) => ({
+  // Derived user-friendly label for call state
+  const humanState = useCallback((s) => ({
     idle: 'Idle',
+    incoming: 'Incoming',
     calling: 'Calling…',
-    ringing: 'Ringing',
-    connecting: 'Connecting…',
-    active: 'Live',
-    busy: 'Busy',
-    error: 'Error',
-    ended: 'Ended'
-  }[s] || s);
+    active: 'Live'
+  }[s] || s), []);
 
   // Timer for active call
   const [elapsed, setElapsed] = useState(0);
@@ -117,33 +122,48 @@ export default function CallPage() {
 
   const mmss = (t) => `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
 
-  // Attach media streams
-  useEffect(() => {
-    if (localStream && localRef.current && localRef.current.srcObject !== localStream) {
-      localRef.current.srcObject = localStream;
+  // Toggle audio/video by disabling tracks on local stream element when available
+  const toggleAudio = () => {
+    setAudioEnabled(a => {
+      const next = !a;
+      const stream = localVideoRef.current?.srcObject;
+      stream?.getAudioTracks().forEach(t => t.enabled = next);
+      return next;
+    });
+  };
+  const toggleVideo = () => {
+    setVideoEnabled(v => {
+      const next = !v;
+      const stream = localVideoRef.current?.srcObject;
+      stream?.getVideoTracks().forEach(t => t.enabled = next);
+      return next;
+    });
+  };
+
+  // Accept incoming offer (patient role)
+  const handleAcceptIncoming = () => {
+    if (incomingOffer && user?.role === 'patient') {
+      answerCall();
     }
-  }, [localStream]);
-  useEffect(() => {
-    if (remoteStream && remoteRef.current && remoteRef.current.srcObject !== remoteStream) {
-      remoteRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
+  };
+
+  const computedCallState = () => {
+    if (incomingOffer && callState === 'incoming') return 'ringing';
+    return callState;
+  };
 
   return (
     <div className="call-container">
       <div className="call-stage">
         <div className="remote-wrapper" ref={remoteWrapperRef}>
-          {remoteStream ? (
-            <video ref={remoteRef} className="remote-video-element" autoPlay playsInline />
+          {callState === 'active' ? (
+            <video ref={remoteVideoRef} className="remote-video-element" autoPlay playsInline />
           ) : (
             <div className="remote-placeholder">
-              {callState === 'calling' && 'Calling…'}
-              {callState === 'ringing' && 'Incoming Call'}
-              {callState === 'connecting' && 'Connecting…'}
-              {callState === 'busy' && 'User Busy'}
-              {callState === 'ended' && 'Call Ended'}
-              {callState === 'idle' && user?.role === 'doctor' && 'Start a Call'}
-              {callState === 'idle' && user?.role === 'patient' && 'Waiting'}
+              {computedCallState() === 'calling' && 'Calling…'}
+              {computedCallState() === 'ringing' && 'Incoming Call'}
+              {computedCallState() === 'idle' && user?.role === 'doctor' && 'Start a Call'}
+              {computedCallState() === 'idle' && user?.role === 'patient' && 'Waiting'}
             </div>
           )}
 
@@ -153,15 +173,11 @@ export default function CallPage() {
             className={`local-preview ${dragging ? 'dragging' : ''}`}
             style={{ transform: `translate(${dragPos.x}px, ${dragPos.y}px)` }}
           >
-            {localStream ? (
-              <video ref={localRef} className="local-video-tag" muted playsInline autoPlay />
-            ) : (
-              <div className="local-offline">You</div>
-            )}
-            {!audioEnabled && localStream && (
+            <video ref={localVideoRef} className="local-video-tag" muted playsInline autoPlay />
+            {!audioEnabled && (
               <div style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,.55)',padding:'4px 8px',borderRadius:8,fontSize:12,color:'#fff'}}>Mic Off</div>
             )}
-            {!videoEnabled && localStream && (
+            {!videoEnabled && (
               <div style={{position:'absolute',bottom:6,left:6,background:'rgba(0,0,0,.55)',padding:'4px 8px',borderRadius:8,fontSize:12,color:'#fff'}}>Video Off</div>
             )}
           </div>
@@ -196,9 +212,9 @@ export default function CallPage() {
             <div style={{color:'#ffbf47', fontSize:12, maxWidth:160, textAlign:'center'}}>Invalid or missing patientId param</div>
           )
         )}
-        {callState === 'ringing' && user?.role === 'patient' && (
+        {incomingOffer && callState === 'incoming' && user?.role === 'patient' && (
           <>
-            <button className="control-btn-neo" onClick={acceptCall} title="Accept">✅</button>
+            <button className="control-btn-neo" onClick={handleAcceptIncoming} title="Accept">✅</button>
             <button className="control-btn-neo control-btn-danger" onClick={endCall} title="Reject">✖</button>
           </>
         )}

@@ -12,7 +12,6 @@ import CallPage from "./pages/CallPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CallNotification from "./components/CallNotification";
-import { CallProvider } from './context/CallContext';
 
 // This component now handles the loading state
 const ProtectedRoute = ({ children, role }) => {
@@ -58,10 +57,9 @@ function App() {
 
   return (
     <Router>
-      <CallProvider>
-        <Layout>
-          <CallNotification />
-          <Routes>
+      <Layout>
+        <CallNotification />
+        <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -73,7 +71,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
           <Route 
             path="/patient/*" 
             element={
@@ -90,9 +87,8 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          </Routes>
-        </Layout>
-      </CallProvider>
+        </Routes>
+      </Layout>
     </Router>
   );
 }
