@@ -15,6 +15,7 @@ export default function useWebRTC(user) {
   const localStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
   const queuedCandidatesRef = useRef([]); // Queue ICE candidates until remote description is set
+  const pendingRemoteStreamRef = useRef(null); // Store remote stream when video element isn't ready
 
   // Enhanced ICE servers for better connectivity
   const iceServers = [
@@ -186,27 +187,31 @@ export default function useWebRTC(user) {
         hasVideoElement: !!remoteVideoRef.current
       });
       
-      if (remoteVideoRef.current && event.streams[0]) {
+      if (event.streams[0]) {
         const stream = event.streams[0];
-        console.log('🎥 Attaching remote stream:', {
+        console.log('🎥 Processing remote stream:', {
           streamId: stream.id,
           videoTracks: stream.getVideoTracks().length,
           audioTracks: stream.getAudioTracks().length,
           active: stream.active
         });
         
-        remoteVideoRef.current.srcObject = stream;
-        console.log('✅ Remote video stream attached to element');
+        // Store the stream for later attachment if video element isn't ready
+        pendingRemoteStreamRef.current = stream;
         
-        // Force video element to play
-        remoteVideoRef.current.play().catch(e => {
-          console.warn('⚠️ Remote video autoplay failed:', e);
-        });
+        if (remoteVideoRef.current) {
+          console.log('✅ Video element ready, attaching stream immediately');
+          remoteVideoRef.current.srcObject = stream;
+          
+          // Force video element to play
+          remoteVideoRef.current.play().catch(e => {
+            console.warn('⚠️ Remote video autoplay failed:', e);
+          });
+        } else {
+          console.log('📦 Video element not ready, stream stored for later attachment');
+        }
       } else {
-        console.warn('⚠️ Cannot attach remote stream:', {
-          hasVideoElement: !!remoteVideoRef.current,
-          hasStream: !!event.streams[0]
-        });
+        console.warn('⚠️ No stream in ontrack event');
       }
     };
 
@@ -348,6 +353,30 @@ export default function useWebRTC(user) {
     }
   };
 
+  // Retry attaching pending remote stream when video element becomes available
+  const retryRemoteStreamAttachment = () => {
+    if (pendingRemoteStreamRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
+      console.log('🔄 Retrying remote stream attachment');
+      console.log('🎥 Attaching pending remote stream:', {
+        streamId: pendingRemoteStreamRef.current.id,
+        videoTracks: pendingRemoteStreamRef.current.getVideoTracks().length,
+        audioTracks: pendingRemoteStreamRef.current.getAudioTracks().length,
+        active: pendingRemoteStreamRef.current.active
+      });
+      
+      remoteVideoRef.current.srcObject = pendingRemoteStreamRef.current;
+      
+      // Force video element to play
+      remoteVideoRef.current.play().catch(e => {
+        console.warn('⚠️ Remote video autoplay failed:', e);
+      });
+      
+      console.log('✅ Pending remote stream attached successfully');
+      return true;
+    }
+    return false;
+  };
+
   // End call
   const endCall = () => {
     console.log('📞 Ending call');
@@ -369,6 +398,7 @@ export default function useWebRTC(user) {
     setIncomingOffer(null);
     remoteUserIdRef.current = null;
     queuedCandidatesRef.current = []; // Clear queued candidates
+    pendingRemoteStreamRef.current = null; // Clear pending remote stream
     
     // Clear video elements
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -381,6 +411,7 @@ export default function useWebRTC(user) {
     startCall,
     answerCall,
     endCall,
+    retryRemoteStreamAttachment,
     incomingOffer,
     callState
   };

@@ -26,6 +26,7 @@ export default function CallPage() {
     startCall,
     answerCall,
     endCall,
+    retryRemoteStreamAttachment,
     incomingOffer,
     callState
   } = useWebRTC(user);
@@ -218,6 +219,16 @@ export default function CallPage() {
       answerCall();
     }
   };
+
+  // Retry remote stream attachment when video element becomes available
+  useEffect(() => {
+    if (remoteVideoRef.current && retryRemoteStreamAttachment) {
+      const attached = retryRemoteStreamAttachment();
+      if (attached) {
+        console.log('📺 Successfully attached pending remote stream');
+      }
+    }
+  }, [remoteVideoRef.current, callState, retryRemoteStreamAttachment]);
 
   // Monitor remote video stream
   useEffect(() => {
