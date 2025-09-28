@@ -83,12 +83,23 @@ export default function CallPage() {
         console.log(`🔄 Doctor starting call to patient:`, targetUserId);
         startCall(targetUserId);
       }
-    } else if (user?.role === 'patient' && incomingOffer && callState === 'incoming') {
-      // Patient answers incoming call
+    } else if (user?.role === 'patient' && callState === 'idle') {
+      // Patient also needs to initialize WebRTC to be ready to receive offers
+      const targetUserId = appointmentData.doctorId;
+      if (targetUserId && isValidMongoId(targetUserId)) {
+        console.log(`🔄 Patient initializing WebRTC for doctor:`, targetUserId);
+        startCall(targetUserId);
+      }
+    }
+  }, [appointmentData, callState, user, startCall]);
+
+  // Handle incoming offers (patient auto-answers)
+  useEffect(() => {
+    if (user?.role === 'patient' && incomingOffer && callState === 'incoming') {
       console.log(`🔄 Patient answering incoming call`);
       answerCall();
     }
-  }, [appointmentData, callState, incomingOffer, user, startCall, answerCall]);
+  }, [incomingOffer, callState, user, answerCall]);
 
   const handleDoctorStart = () => {
     const targetId = appointmentData?.patientId || resolvedPatientId;

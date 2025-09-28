@@ -85,9 +85,11 @@ export default function useWebRTC(user) {
       }
     };
 
-    // Register user
-    if (user?._id) {
-      socketRef.current.emit("register", user._id);
+    // Register user - join room with their ID so they can receive WebRTC signals
+    if (user?._id || user?.id) {
+      const userId = user._id || user.id;
+      console.log('🏠 Joining room for user:', userId);
+      socketRef.current.emit("join", userId);
     }
 
     // Socket listeners
@@ -107,7 +109,9 @@ export default function useWebRTC(user) {
 
   // Handle incoming offer
   const handleOffer = async (payload) => {
-    console.log('📥 Incoming offer from:', payload.from);
+    console.log('📥 Incoming WebRTC offer from:', payload.from, payload);
+    console.log('📋 Current call state:', callState);
+    console.log('📋 Current user ID:', user?._id || user?.id);
     setIncomingOffer(payload);
     setCallState('incoming');
     remoteUserIdRef.current = payload.from;
@@ -163,10 +167,13 @@ export default function useWebRTC(user) {
       await pcRef.current.setLocalDescription(offer);
       console.log('✅ Local description set, sending offer');
       
-      socketRef.current.emit("webrtc:offer", {
+      const offerPayload = {
         offer,
         to: targetUserId,
-      });
+        from: user?._id || user?.id
+      };
+      console.log('📤 Emitting WebRTC offer:', offerPayload);
+      socketRef.current.emit("webrtc:offer", offerPayload);
       
       setCallState('calling');
     } catch (error) {
