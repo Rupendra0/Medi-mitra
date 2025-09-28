@@ -1,6 +1,4 @@
-import React, { useState, useRef } from "react";
-import { useEffect } from "react";
-import io from "socket.io-client";
+import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import AnimatedButton from "./AnimatedButton";
 import logo from "../logo.png";
@@ -9,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function HomeAssistant() {
   const [user, setUser] = useState(null);
-  React.useEffect(() => {
+  useEffect(() => {
     fetch(`${API_URL}/api/auth/me`, { credentials: "include" })
       .then(res => res.json())
       .then(data => setUser(data.user))
@@ -25,62 +23,7 @@ export default function HomeAssistant() {
       window.removeEventListener("user-updated", handleUserUpdated);
     };
   }, []);
-  // Socket.io and WebRTC setup
-  const [socket, setSocket] = useState(null);
-  const [peer, setPeer] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-  const [localStream, setLocalStream] = useState(null);
-  const videoRef = useRef(null);
-
-  useEffect(() => {
-    // Connect to Socket.io server
-    const s = io(API_URL);
-    setSocket(s);
-    return () => {
-      s.disconnect();
-    };
-  }, []);
-
-  // Start video call (basic demo)
-  const startVideoCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setLocalStream(stream);
-      // dynamically import the browser bundle of simple-peer to avoid importing Node-only modules at module-eval
-      let PeerLib = null;
-      try {
-        // prefer the pre-bundled browser build
-        const mod = await import('simple-peer/simplepeer.min.js');
-        PeerLib = mod && (mod.default || mod);
-      } catch (err) {
-        // fallback to main package (may still work depending on bundler shims)
-        try {
-          const mod = await import('simple-peer');
-          PeerLib = mod && (mod.default || mod);
-        } catch (err2) {
-          console.error('Failed to load simple-peer:', err2);
-          throw new Error('WebRTC library not available');
-        }
-      }
-
-      const p = new PeerLib({ initiator: true, trickle: false, stream });
-      setPeer(p);
-      p.on("signal", data => {
-        socket.emit("webrtc-signal", data);
-      });
-      socket.on("webrtc-signal", signal => {
-        p.signal(signal);
-      });
-      p.on("stream", remote => {
-        setRemoteStream(remote);
-        if (videoRef.current) {
-          videoRef.current.srcObject = remote;
-        }
-      });
-    } catch (err) {
-      alert("Could not start video call: " + err.message);
-    }
-  };
+  // (Video call demo removed by request – keeping logic minimal for AI assistant only)
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
@@ -196,29 +139,7 @@ export default function HomeAssistant() {
         </div>
 
         <div className="space-y-4">
-          {/* Video Call Demo */}
-          {user && (
-            <div
-              style={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "1rem" }}
-            >
-              <AnimatedButton
-                onClick={startVideoCall}
-                variant="secondary"
-                size="large"
-              >
-                🎥 Start Video Call Demo
-              </AnimatedButton>
-            </div>
-          )}
-          
-          {remoteStream && (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              style={{ width: '100%', borderRadius: '1rem', marginBottom: '1rem', border: '2px solid #0ef6cc' }}
-            />
-          )}
+          {/* Video call demo removed */}
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}

@@ -44,6 +44,7 @@ export default function CallPage() {
 
   const handleDoctorStart = () => {
     if (user?.role === 'doctor' && resolvedPatientId && isValidMongoId(resolvedPatientId)) {
+      console.log('Initializing call with patient:', resolvedPatientId);
       startCall(resolvedPatientId);
     }
   };
@@ -155,11 +156,11 @@ export default function CallPage() {
   return (
     <div className="call-container">
       <div className="call-stage">
-        <div className="remote-wrapper" ref={remoteWrapperRef}>
+        <div className="remote-wrapper" ref={remoteWrapperRef} style={{position:'absolute', inset:0}}>
           {callState === 'active' ? (
-            <video ref={remoteVideoRef} className="remote-video-element" autoPlay playsInline />
+            <video ref={remoteVideoRef} className="remote-video" autoPlay playsInline />
           ) : (
-            <div className="remote-placeholder">
+            <div className="remote-placeholder" style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#bbb',fontSize:'1.2rem'}}>
               {computedCallState() === 'calling' && 'Calling…'}
               {computedCallState() === 'ringing' && 'Incoming Call'}
               {computedCallState() === 'idle' && user?.role === 'doctor' && 'Start a Call'}
@@ -167,66 +168,64 @@ export default function CallPage() {
             </div>
           )}
 
-          {/* Local preview (draggable) */}
           <div
             ref={dragRef}
             className={`local-preview ${dragging ? 'dragging' : ''}`}
-            style={{ transform: `translate(${dragPos.x}px, ${dragPos.y}px)` }}
+            style={{ position:'absolute', top:20, right:20, width:220, background:'#000', borderRadius:12, overflow:'hidden', transform: `translate(${dragPos.x}px, ${dragPos.y}px)`, boxShadow:'0 4px 18px rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.12)'}}
           >
-            <video ref={localVideoRef} className="local-video-tag" muted playsInline autoPlay />
+            <video ref={localVideoRef} style={{width:'100%',height:'150px',objectFit:'cover',background:'#111'}} muted playsInline autoPlay />
+            <div style={{position:'absolute',bottom:6,left:8,fontSize:12,color:'#fff',textShadow:'0 1px 2px rgba(0,0,0,.6)'}}>You: {user?.name || 'User'}</div>
             {!audioEnabled && (
               <div style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,.55)',padding:'4px 8px',borderRadius:8,fontSize:12,color:'#fff'}}>Mic Off</div>
             )}
             {!videoEnabled && (
-              <div style={{position:'absolute',bottom:6,left:6,background:'rgba(0,0,0,.55)',padding:'4px 8px',borderRadius:8,fontSize:12,color:'#fff'}}>Video Off</div>
+              <div style={{position:'absolute',bottom:30,left:8,background:'rgba(0,0,0,.55)',padding:'4px 8px',borderRadius:8,fontSize:12,color:'#fff'}}>Video Off</div>
             )}
           </div>
 
-          {/* Status badge */}
-            <div className={`indicator-badge ${callState === 'active' ? 'active' : ''}`}>
-              <span>{humanState(callState)}</span>
-              {callState === 'active' && <span className="call-timer">{mmss(elapsed)}</span>}
+          <div style={{position:'absolute',top:16,left:20,display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{color:'#fff',fontWeight:600,fontSize:14,display:'flex',alignItems:'center',gap:8}}>
+              <span className={`indicator-badge ${callState === 'active' ? 'active' : ''}`} style={{background: callState==='active'? '#16a34a':'#444',padding:'4px 10px',borderRadius:20,fontSize:12,letterSpacing:.5}}>{humanState(callState)}</span>
+              {callState === 'active' && <span style={{color:'#fff',fontSize:12,opacity:.8}}>{mmss(elapsed)}</span>}
             </div>
-
-          {/* Participant meta */}
-          <div className="top-right-meta">
-            <div className="participant-chip">You: {user?.name || 'User'}</div>
             {peerLabel(resolvedPatientId, user) && (
-              <div className="participant-chip">Peer: {peerLabel(resolvedPatientId, user)}</div>
+              <div className="participant-chip" style={{background:'rgba(255,255,255,0.08)',color:'#eee',padding:'4px 10px',borderRadius:20,fontSize:12}}>Peer: {peerLabel(resolvedPatientId, user)}</div>
             )}
           </div>
 
-          {/* Reason toast */}
           {['busy','error'].includes(callState) && reason && (
-            <div className="status-toast">{reason}</div>
+            <div style={{position:'absolute',top:80,left:20,background:'#b91c1c',color:'#fff',padding:'8px 14px',borderRadius:8,fontSize:13}}>{reason}</div>
           )}
         </div>
       </div>
 
-      {/* Control bar */}
-      <div className="call-control-bar">
+      {/* Persistent Zoom-style control bar */}
+      <div className="controls" style={{backdropFilter:'blur(6px)'}}>
+        {/* Start / Accept section */}
         {user?.role === 'doctor' && callState === 'idle' && (
           isValidMongoId(resolvedPatientId) ? (
-            <button className="control-btn-neo" onClick={handleDoctorStart} title="Start Call">📞</button>
+            <button className="control-btn" onClick={handleDoctorStart} title="Start Call">📞</button>
           ) : (
             <div style={{color:'#ffbf47', fontSize:12, maxWidth:160, textAlign:'center'}}>Invalid or missing patientId param</div>
           )
         )}
         {incomingOffer && callState === 'incoming' && user?.role === 'patient' && (
           <>
-            <button className="control-btn-neo" onClick={handleAcceptIncoming} title="Accept">✅</button>
-            <button className="control-btn-neo control-btn-danger" onClick={endCall} title="Reject">✖</button>
+            <button className="control-btn" onClick={handleAcceptIncoming} title="Accept">✅</button>
+            <button className="control-btn end-call" onClick={endCall} title="Reject">✖</button>
+          </>
+        )}
+
+        {/* Active call controls */}
+        {callState === 'active' && (
+          <>
+            <button className="control-btn" onClick={toggleAudio} title={audioEnabled ? 'Mute' : 'Unmute'}>{audioEnabled ? '🎤' : '🔇'}</button>
+            <button className="control-btn" onClick={toggleVideo} title={videoEnabled ? 'Stop Video' : 'Start Video'}>{videoEnabled ? '📷' : '🚫'}</button>
+            <button className="control-btn end-call" onClick={endCall} title="End Call">⏹</button>
           </>
         )}
         {callState === 'calling' && (
-          <button className="control-btn-neo control-btn-danger" onClick={endCall} title="Cancel">✖</button>
-        )}
-        {callState === 'active' && (
-          <>
-            <button className="control-btn-neo" onClick={toggleAudio} title={audioEnabled ? 'Mute' : 'Unmute'}>{audioEnabled ? '🎤' : '🔇'}</button>
-            <button className="control-btn-neo" onClick={toggleVideo} title={videoEnabled ? 'Turn Camera Off' : 'Turn Camera On'}>{videoEnabled ? '📷' : '🚫'}</button>
-            <button className="control-btn-neo control-btn-danger" onClick={endCall} title="End Call">⏹</button>
-          </>
+          <button className="control-btn end-call" onClick={endCall} title="Cancel Call">✖</button>
         )}
       </div>
     </div>

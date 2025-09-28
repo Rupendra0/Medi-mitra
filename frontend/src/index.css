@@ -11,9 +11,10 @@ html, body {
 }
 
 #root {
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  overflow: hidden; /* Prevent scrolling on root */
+  /* Allow natural vertical scroll so sections below the hero (HomeAssistant, Footer) are reachable */
+  overflow-x: hidden; /* still prevent horizontal scroll */
 }
 
 /* Ensure full viewport height for call page */
