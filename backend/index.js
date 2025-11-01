@@ -65,6 +65,10 @@ app.post("/api/gemini-agent", async (req, res) => {
     return res.status(500).json({ reply: "AI सेवा उपलब्ध नहीं है। कृपया बाद में प्रयास करें।" });
   }
 
+  if (!query || !query.trim()) {
+    return res.status(400).json({ reply: "कृपया अपने लक्षण या प्रश्न लिखें।" });
+  }
+
   const prompt = `You are a simple healthcare assistant for rural patients in Nabha, Punjab.
 Respond in the same language as the query (English, Hindi, Punjabi).
 Reply short, clear, and friendly.
@@ -74,14 +78,15 @@ Use Markdown with these sections:
 3. Simple Home/Traditional Remedies
 4. Common OTC Medicines
 5. When to See a Doctor
-6. Serious Warning Signs`;
+6. Serious Warning Signs
+Do not copy the patient's words verbatim. Summarise their symptoms first, then give fresh guidance.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini" || "gpt-3.5-turbo",
       messages: [
         { role: "system", content: "You are a concise rural healthcare assistant. Mirror the patient's language (English, Hindi, Punjabi). Use Markdown with the specified sections." },
-        { role: "user", content: query }
+        { role: "user", content: `Patient details: ${query}\nPlease analyse the symptoms above and respond with clear advice without repeating the exact phrases.` }
       ],
       temperature: 0.7
     });
