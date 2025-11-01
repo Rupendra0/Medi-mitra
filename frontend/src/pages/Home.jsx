@@ -11,7 +11,7 @@ import logo from "../logo.png";
 
 function Home() {
   const { isAuthenticated, user, authStatus } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch(); 
 
   const handleLogout = async () => {
     try {
