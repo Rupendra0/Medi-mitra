@@ -20,17 +20,22 @@ export default function useWebRTC(user) {
 
   const ensureRemotePlayback = (videoEl, attempt = 0) => {
     if (!videoEl) return;
-    if (videoEl !== remoteVideoRef.current) return; // element replaced
+    if (videoEl !== remoteVideoRef.current) return; // element replaced during retry
     if (!videoEl.srcObject) return;
 
-    const maxAttempts = 7;
+    // If already playing, nothing else to do
+    if (!videoEl.paused && !videoEl.ended && videoEl.readyState >= 2) {
+      return;
+    }
+
+    const maxAttempts = 9;
     const scheduleRetry = (reason) => {
       if (attempt >= maxAttempts) {
         console.warn('⚠️ Remote autoplay giving up after max attempts:', reason);
         return;
       }
-      const delay = Math.min(750, 120 * (attempt + 1));
-      setTimeout(() => ensureRemotePlayback(videoEl, attempt + 1), delay);
+      const delay = Math.min(900, 150 * (attempt + 1));
+      setTimeout(() => ensureRemotePlayback(remoteVideoRef.current, attempt + 1), delay);
     };
 
     if (!videoEl.isConnected) {
@@ -39,23 +44,35 @@ export default function useWebRTC(user) {
       return;
     }
 
-    const playPromise = videoEl.play();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch(err => {
-        console.warn('⚠️ Remote video autoplay failed (attempt):', err?.message || err);
-        if (err?.name === 'AbortError' || /interrupted/i.test(err?.message || '')) {
-          scheduleRetry('abort');
-        } else if (err?.name === 'NotAllowedError') {
-          // keep muted and retry, browser may allow once layout settles
-          scheduleRetry('not-allowed');
-        }
-      });
-    }
+    const attemptPlay = () => {
+      if (!videoEl || videoEl !== remoteVideoRef.current) return;
+      if (!videoEl.srcObject) return;
+
+      const playPromise = videoEl.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(err => {
+          console.warn('⚠️ Remote video autoplay failed (attempt):', err?.message || err);
+          if (err?.name === 'AbortError' || /interrupted/i.test(err?.message || '')) {
+            scheduleRetry('abort');
+          } else if (err?.name === 'NotAllowedError') {
+            scheduleRetry('not-allowed');
+          }
+        });
+      }
+    };
 
     if (videoEl.readyState < 1) {
-      const onLoaded = () => ensureRemotePlayback(videoEl, attempt);
+      const onLoaded = () => ensureRemotePlayback(remoteVideoRef.current, attempt);
       videoEl.addEventListener('loadedmetadata', onLoaded, { once: true });
     }
+
+    requestAnimationFrame(() => {
+      if (!videoEl.isConnected) {
+        scheduleRetry('raf-not-connected');
+        return;
+      }
+      attemptPlay();
+    });
   };
 
   // Enhanced ICE servers for better connectivity

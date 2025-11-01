@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import mainRoutes from "./routes/main.js";
 import protectedRoutes from "./routes/protected.js";
 import Appointment from "./models/Appointment.js";
@@ -47,9 +47,8 @@ app.use("/api", protectedRoutes);
 app.use("/api", prescriptionRoutes);
 app.use("/api", Ragroutes);
 
-// Gemini agent
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// OpenAI client (GPT-4 powered)
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -75,10 +74,19 @@ You are a simple healthcare assistant for rural patients in Nabha, Punjab.
 Patient says: "${query}"
 `;
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a concise rural healthcare assistant. Mirror the patient's language (English, Hindi, Punjabi). Use Markdown with the specified sections." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7
+    });
+
+    const response = completion.choices[0]?.message?.content?.trim() || "";
     res.json({ reply: response });
-  } catch {
+  } catch (error) {
+    console.error("❌ OpenAI request failed:", error?.message || error);
     res.status(500).json({ reply: "AI से जवाब नहीं मिला। कृपया बाद में प्रयास करें।" });
   }
 });
