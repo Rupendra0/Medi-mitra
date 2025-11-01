@@ -45,7 +45,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", mainRoutes);
 app.use("/api", protectedRoutes);
 app.use("/api", prescriptionRoutes);
-app.use("/api", Ragroutes);
+// app.use("/api", Ragroutes);
 
 // OpenAI client (GPT-4 powered)
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
