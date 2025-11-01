@@ -10,7 +10,7 @@ export default function SymptomChecker() {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const resultPanelStyles = {
     maxHeight: "50vh",
     overflowY: "auto",
@@ -44,7 +44,8 @@ export default function SymptomChecker() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `${t('patientQueryPrefix') || 'Patient reports the following symptoms:'} ${selectedSymptoms.join(", ")}.`
+          query: `${t('patientQueryPrefix') || 'Patient reports the following symptoms:'} ${selectedSymptoms.join(", ")}.`,
+          language: lang
         }),
       });
 

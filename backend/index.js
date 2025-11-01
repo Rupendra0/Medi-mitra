@@ -58,7 +58,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/api/gemini-agent", async (req, res) => {
-  const { query } = req.body;
+  const { query, language } = req.body;
 
   if (!process.env.OPENAI_API_KEY) {
     console.error("❌ Missing OPENAI_API_KEY environment variable");
@@ -69,8 +69,16 @@ app.post("/api/gemini-agent", async (req, res) => {
     return res.status(400).json({ reply: "कृपया अपने लक्षण या प्रश्न लिखें।" });
   }
 
+  const languageMap = {
+    hi: { name: "Hindi", script: "देवनागरी" },
+    pa: { name: "Punjabi", script: "ਗੁਰਮੁਖੀ" },
+    en: { name: "English", script: "Latin" },
+  };
+  const normalizedLang = (language || "").toLowerCase();
+  const languageMeta = languageMap[normalizedLang] || languageMap.en;
+
   const prompt = `You are a simple healthcare assistant for rural patients in Nabha, Punjab.
-Respond in the same language as the query (English, Hindi, Punjabi).
+Always respond entirely in ${languageMeta.name} using the ${languageMeta.script} script. Do not switch languages.
 Reply short, clear, and friendly.
 Use Markdown with these sections:
 1. Possible Causes
@@ -85,8 +93,8 @@ Do not copy the patient's words verbatim. Summarise their symptoms first, then g
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini" || "gpt-3.5-turbo",
       messages: [
-        { role: "system", content: "You are a concise rural healthcare assistant. Mirror the patient's language (English, Hindi, Punjabi). Use Markdown with the specified sections." },
-        { role: "user", content: `Patient details: ${query}\nPlease analyse the symptoms above and respond with clear advice without repeating the exact phrases.` }
+        { role: "system", content: prompt },
+        { role: "user", content: `Patient details (language: ${languageMeta.name}): ${query}\nPlease analyse the symptoms above and respond with clear advice without repeating the exact phrases.` }
       ],
       temperature: 0.7
     });

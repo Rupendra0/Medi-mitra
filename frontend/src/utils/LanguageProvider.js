@@ -22,6 +22,8 @@ const translations = {
     backToHome: "Back to Home"
     ,
     symptomCheckerTitle: "AI Symptom Checker",
+  expandFullView: "View full report",
+  close: "Close",
   // localized symptom labels (array)
   symptomsList: ["Fever","Cough","Headache","Fatigue","Shortness of breath","Body ache","Sore throat","Nausea","Vomiting","Diarrhea","Constipation","Stomach pain","Chest pain","Back pain","Joint pain","Dizziness","Loss of appetite","Weight loss","Swelling (Edema)","Skin rash","Itching","Chills","Runny nose","Eye redness","Ear pain","Toothache","Burning urination","Frequent urination"],
   // prefix for AI query to provide in-language prompt
@@ -94,6 +96,8 @@ const translations = {
     backToHome: "होम पर वापस जाएं"
     ,
     symptomCheckerTitle: "एआई लक्षण जाँच",
+  expandFullView: "पूरी रिपोर्ट देखें",
+  close: "बंद करें",
   symptomsList: ["बुखार","खाँसी","सिरदर्द","थकान","साँस में तकलीफ","शरीर में दर्द","गला ख़राब","उल्टी","वमन","दस्त","कब्ज","पेट दर्द","छाती में दर्द","कमर का दर्द","जोड़ों में दर्द","चक्कर","भूख में कमी","वजन कम होना","सूजन (एडीमा)","त्वचा पर चकत्ते","खुजली","काँपना","नाक बहना","आँख लाल होना","कान में दर्द","दाँत दर्द","पेशाब करते समय जलन","बार-बार पेशाब"],
   patientQueryPrefix: "रोगी नीचे दिए गए लक्षण बता रहे हैं:",
     selectSymptoms: "अपनी शिकायत वाले लक्षण चुनें:",
@@ -164,6 +168,8 @@ const translations = {
     backToHome: "ਮੁੱਖ ਪੰਨੇ ਤੇ ਵਾਪਸ ਜਾਓ"
     ,
     symptomCheckerTitle: "ਏਆਈ ਲੱਛਣ ਚੈਕਰ",
+  expandFullView: "ਪੂਰੀ ਰਿਪੋਰਟ ਵੇਖੋ",
+  close: "ਬੰਦ ਕਰੋ",
   symptomsList: ["ਬੁਖਾਰ","ਖੰਘ","ਸਿਰਦਰਦ","ਥਕਾਵਟ","ਸਾਸ ਲੈਣ ਵਿੱਚ ਤਕਲੀਫ","ਸਰੀਰ ਦਰਦ","ਗਲਾ ਦਰਦ","ਮਤਲੀ","ਉਲਟੀ","ਦਸਤ","ਕਬਜ਼","ਪੀਟ ਦਰਦ","ਛਾਤੀ ਦਰਦ","ਕੰਢ ਦਰਦ","ਜੋੜ ਦਰਦ","ਚੱਕਰ","ਭੁੱਖ ਘਟਣਾ","ਵਜ਼ਨ ਘਟਣਾ","ਸੂਜ਼ਣ (ਏਡੀਮਾ)","ਚਮੜੀ ਤੇ ਰੈਸ਼","ਖੁਜਲੀ","ਕੰਬਣ","ਨਾੱਕ ਬਹਿਣਾ","ਅੱਖ ਲਾਲ ਹੋਣਾ","ਕਾਨ ਦਰਦ","ਦੰਦ ਦਰਦ","ਪੇਸ਼ਾਬ ਕਰਦਿਆਂ ਜ਼ਲਨ","ਅਕਸਰ ਪੇਸ਼ਾਬ"],
   patientQueryPrefix: "ਮਰੀਜ਼ ਹੇਠਾਂ ਦਿੱਤੇ ਲੱਛਣ ਦਰਜ ਕਰਦਾ ਹੈ:",
     selectSymptoms: "ਆਪਣੇ ਲੱਛਣ ਚੁਣੋ:",
