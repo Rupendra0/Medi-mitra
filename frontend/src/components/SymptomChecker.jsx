@@ -9,6 +9,7 @@ export default function SymptomChecker() {
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
   const { t } = useLanguage();
   const resultPanelStyles = {
     maxHeight: "50vh",
@@ -36,6 +37,7 @@ export default function SymptomChecker() {
 
     setLoading(true);
     setResult("");
+    setShowOverlay(false);
 
     try {
       const res = await fetch(`${API_URL}/api/gemini-agent`, {
@@ -48,12 +50,18 @@ export default function SymptomChecker() {
 
       const data = await res.json();
       setResult(data.reply || t('aiNoResponse'));
+      setShowOverlay(true);
     } catch (err) {
       console.error("Error calling AI:", err);
       setResult(t('aiError'));
+      setShowOverlay(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeOverlay = () => {
+    setShowOverlay(false);
   };
 
   return (
@@ -81,6 +89,32 @@ export default function SymptomChecker() {
       {result && (
         <div className="result markdown-output" style={resultPanelStyles}>
           <ReactMarkdown>{result}</ReactMarkdown>
+          <button
+            type="button"
+            className="symptom-checker__expand"
+            onClick={() => setShowOverlay(true)}
+          >
+            {t('expandFullView') || '🔍 पूरी रिपोर्ट देखें'}
+          </button>
+        </div>
+      )}
+
+      {showOverlay && result && (
+        <div className="symptom-checker-overlay" role="dialog" aria-modal="true">
+          <div className="symptom-checker-overlay__backdrop" onClick={closeOverlay} aria-hidden="true" />
+          <div className="symptom-checker-overlay__card">
+            <button
+              type="button"
+              className="symptom-checker-overlay__close"
+              onClick={closeOverlay}
+              aria-label={t('close') || 'Close'}
+            >
+              ×
+            </button>
+            <div className="symptom-checker-overlay__content markdown-output">
+              <ReactMarkdown>{result}</ReactMarkdown>
+            </div>
+          </div>
         </div>
       )}
     </div>
