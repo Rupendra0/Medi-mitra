@@ -14,7 +14,7 @@ const HamburgerButton = ({ onClick }) => (
 );
 
 // The props are now simplified to only what's needed
-export default function DashboardHeader({ title, onMenuClick, onRefresh, quickActions = [] }) {
+export default function DashboardHeader({ title, onMenuClick, onRefresh, quickActions = [], currentUser, subtitle }) {
   const { lang, setLang } = useLanguage();
 
   const smallBtn = {
@@ -36,9 +36,14 @@ export default function DashboardHeader({ title, onMenuClick, onRefresh, quickAc
         <Link to="/" className="back-button">← Home</Link>
       </div>
 
-      {/* Center Section - Simplified to only show the title */}
+      {/* Center Section - show provided title or derive from user role */}
       <div className="header-center">
-        <div className="header-title">{'Doctor Dashboard'}</div>
+        <div className="header-title">
+          {title
+            || (currentUser?.role === 'patient' ? 'Patient Dashboard'
+              : (currentUser?.role === 'doctor' ? 'Doctor Dashboard' : 'Dashboard'))}
+        </div>
+        {subtitle && <div className="header-subtitle">{subtitle}</div>}
       </div>
 
       {/* Right Section - quick actions + refresh + language toggles */}

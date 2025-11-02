@@ -12,8 +12,13 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
   const { t } = useLanguage();
 
   const handleRequestCall = async () => {
-    if (!booking.doctor || !booking.date || !booking.symptoms) {
-      setError(t('pleaseSelectSymptom'));
+    // Validate required fields: doctor and date only. Symptoms are optional.
+    if (!booking.doctor) {
+      setError(t('pleaseSelectDoctor') || 'Please select a doctor');
+      return;
+    }
+    if (!booking.date) {
+      setError(t('pleaseSelectDate') || 'Please choose a date and time');
       return;
     }
     setLoading(true);
@@ -97,7 +102,8 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
 
     const appointmentData = {
       doctor: booking.doctor,
-      symptoms: booking.symptoms.split(',').map(s => s.trim()),
+      // Make symptoms optional and sanitize list
+      symptoms: booking.symptoms ? booking.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
       date: booking.date,
     };
 

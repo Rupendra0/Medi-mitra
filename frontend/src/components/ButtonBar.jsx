@@ -1,32 +1,49 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import api from '../utils/api';
+import { logoutSuccess } from '../utils/authSlice';
 
-const HamburgerButton = ({ onClick }) => (
-  <button onClick={onClick} className="hamburger-btn">
-    <svg viewBox="0 0 100 80" width="25" height="25" fill="#fff">
-      <rect width="100" height="15" rx="8"></rect>
-      <rect y="30" width="100" height="15" rx="8"></rect>
-      <rect y="60" width="100" height="15" rx="8"></rect>
-    </svg>
-  </button>
-);
+export default function ButtonBar() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
 
-export default function DashboardHeader({ title, onMenuClick }) {
+  const dashboardLabel = useMemo(() => {
+    if (user?.role === 'doctor') return 'Doctor Dashboard';
+    if (user?.role === 'patient') return 'Patient Dashboard';
+    return 'Dashboard Home';
+  }, [user?.role]);
+
+  const handleDashboard = () => {
+    if (user?.role === 'doctor') {
+      navigate('/doctor');
+    } else if (user?.role === 'patient') {
+      navigate('/patient');
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      dispatch(logoutSuccess());
+      navigate('/');
+    }
+  };
+
   return (
-    <header className="dashboard-header">
-      {/* Left Section: Hamburger and Back Button */}
-      <div className="header-left">
-        <HamburgerButton onClick={onMenuClick} />
-        <Link to="/" className="back-button">← Home</Link>
-      </div>
-
-      {/* Center Section: Title */}
-      <div className="header-center">
-        <div className="header-title">{title || 'Dashboard'}</div>
-      </div>
-
-      {/* Right Section: Kept for balance, but empty on mobile */}
-      <div className="header-right"></div>
-    </header>
+    <div className="sidebar-button-bar">
+      <button type="button" className="sidebar-btn sidebar-btn-primary" onClick={handleDashboard}>
+        {dashboardLabel}
+      </button>
+      <button type="button" className="sidebar-btn sidebar-btn-secondary" onClick={handleLogout}>
+        Logout
+      </button>
+    </div>
   );
 }

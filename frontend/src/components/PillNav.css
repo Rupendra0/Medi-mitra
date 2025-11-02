@@ -413,41 +413,48 @@
   transform: translateY(0) scale(1);
 }
 
+
 .mobile-menu-list {
   list-style: none;
   margin: 0;
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  align-items: stretch;
 }
 
 .mobile-menu-link {
-  display: block;
-  padding: 1rem 1.5rem;
-  color: var(--nav-text-primary);
-  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  color: #f2f6f8;
+  background: rgba(255, 255, 255, 0.08);
   text-decoration: none;
-  font-size: 16px;
+  font-size: 0.95rem;
   font-weight: 600;
-  border-radius: calc(var(--nav-border-radius) / 2);
+  border-radius: 16px;
   transition: var(--nav-transition-fast);
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.2);
 }
 
 .mobile-menu-link:hover {
-  background: var(--nav-primary-light);
-  color: var(--nav-primary);
-  border-color: var(--nav-border);
-  transform: translateX(4px);
+  background: rgba(0, 129, 112, 0.22);
+  color: #0ef6cc;
+  border-color: rgba(14, 246, 204, 0.5);
+  transform: translateY(-2px);
 }
 
 .mobile-menu-link.is-active {
   background: linear-gradient(135deg, var(--nav-primary) 0%, var(--nav-primary-hover) 100%);
   color: var(--nav-text-inverse);
-  box-shadow: 0 4px 16px var(--nav-shadow);
+  border-color: transparent;
+  box-shadow: 0 10px 28px rgba(0, 129, 112, 0.35);
+  transform: translateY(-2px);
 }
 
 /* Responsive Breakpoints */
@@ -481,6 +488,29 @@
 
   .pill-nav-right {
     width: 72px;
+  }
+}
+
+/* Fix: ensure navbar uses dark translucent background on tablet/mobile to match site theme
+   and make hamburger lines visible against dark background */
+@media (max-width: 1024px) {
+  .pill-nav-container {
+    background: rgba(15,17,18,0.85) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.4) !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-menu-button,
+  .mobile-menu-button.active {
+    background: rgba(20,24,26,0.6) !important;
+    border-color: rgba(255,255,255,0.03) !important;
+  }
+
+  .mobile-menu-button .hamburger-line,
+  .mobile-menu-button .hamburger-line {
+    background: #fff !important; /* ensure lines visible on dark background */
   }
 }
 

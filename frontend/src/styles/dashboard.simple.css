@@ -6,6 +6,9 @@
   --bg: #111;
   --card: #181818;
   --border-color: #333;
+  /* header heights so layouts can adjust per breakpoint */
+  --header-height-desktop: 85px;
+  --header-height-mobile: 56px;
 }
 
 body {
@@ -21,6 +24,22 @@ body {
   border-radius: 8px; 
   padding: 16px; 
   margin-bottom: 12px; 
+  height: auto; /* allow card to size to content */
+  overflow: visible;
+}
+
+.dashboard-content {
+  min-height: 0;
+  min-width: 0;
+}
+
+.simple-main {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .full-width { width: 100%; box-sizing: border-box; }
@@ -33,7 +52,7 @@ body {
   justify-content: space-between;
   padding: 1rem 1.5rem; /* Slightly more padding */
   background: #222;
-  height: 85px; /* Better fitted height */
+  height: var(--header-height-desktop); /* Better fitted height */
 }
 .header-left, .header-right { 
   flex: 1; 
@@ -83,6 +102,15 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  position: relative;
+  height: 100%;
+  min-height: 100%;
+}
+.sidebar-top-actions {
+  display: none;
+}
+.simple-sidebar nav {
+  padding-bottom: 16px;
 }
 .simple-sidebar ul {
   list-style: none;
@@ -142,6 +170,62 @@ body {
   border-bottom: none;
 }
 
+/* Sidebar language toggles */
+.sidebar-lang {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.sidebar-lang-btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #dfeff0;
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-lang-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sidebar-lang-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: #111;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(14, 246, 204, 0.22);
+}
+
+.sidebar-home-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f5f5f5;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  letter-spacing: 0.4px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-home-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.sidebar-home-btn:active {
+  transform: translateY(1px);
+}
+
 /* --- Desktop & Mobile Visibility Setup --- */
 .hamburger-btn, .sidebar-backdrop, .sidebar-user-info, .sidebar-actions {
   display: none;
@@ -158,20 +242,35 @@ body {
   .dashboard-header .header-right {
     display: none;
   }
+
+  .dashboard-header {
+    height: var(--header-height-mobile);
+    padding: 0.65rem 1rem;
+  }
   
   .simple-sidebar {
-    position: fixed;
-    top: 0;
+    /* position: relative; */
+    /* keep sidebar tucked under the global nav without extra gap */
+    top: var(--nav-height, 72px);
     left: 0;
-    height: 100%;
+    height: calc(100% - var(--nav-height, 72px));
+    min-height: calc(100% - var(--nav-height, 72px));
     width: 280px;
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
-    z-index: 1000;
+    z-index: 1300;
     background: #222;
     border-radius: 0;
     border: none;
+    overflow-y: auto; /* allow scrolling inside sidebar */
+    padding: 16px 18px 110px; /* space for pinned actions */
   }
+
+  .simple-sidebar nav {
+    padding-bottom: 110px;
+    margin-top: 12px;
+  }
+  
 
   .simple-sidebar.sidebar-open {
     transform: translateX(0);
@@ -185,7 +284,7 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.7);
-    z-index: 999;
+    z-index: 1299;
   }
 
   .hamburger-btn {
@@ -194,7 +293,7 @@ body {
     border: none;
     cursor: pointer;
     padding: 10px;
-    z-index: 1001;
+    z-index: 1310;
   }
   
   .sidebar-user-info {
@@ -206,8 +305,36 @@ body {
   .sidebar-user-info p { margin: 4px 0 0; font-size: 0.9rem; color: var(--muted); }
   
   .sidebar-actions {
-    display: block;
-    padding: 16px;
+    /* pin actions to bottom of sidebar so menu items don't overlap them */
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebar-top-actions {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* keep language buttons in a single row and prevent wrapping */
+  .sidebar-actions > div {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
   }
 }
 
@@ -219,7 +346,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .dashboard-header { height: 72px; padding: 10px; }
+  .dashboard-header { height: var(--header-height-mobile); padding: 0.65rem 0.75rem; }
   .header-title { font-size: 1.2rem; }
   .simple-card { padding: 12px; }
   .incoming-call-card { width: 90%; left: 5%; right: 5%; }
