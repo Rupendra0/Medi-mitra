@@ -39,6 +39,7 @@ export default function CallPage() {
   const [reason, setReason] = useState('');
   const [appointmentData, setAppointmentData] = useState(null);
   const [hasRemoteStream, setHasRemoteStream] = useState(false);
+  const forcePreviewStreamRef = useRef(null);
 
   // Manual refs for draggable local preview wrapper
   const remoteWrapperRef = useRef(null);
@@ -87,6 +88,10 @@ export default function CallPage() {
         
         // Use exact same getUserMedia call as doctor's startCall
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (forcePreviewStreamRef.current && forcePreviewStreamRef.current !== stream) {
+          forcePreviewStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+        forcePreviewStreamRef.current = stream;
         
         console.log('✅ CallPage: Got media stream successfully');
         
@@ -121,6 +126,12 @@ export default function CallPage() {
     // Run immediately and also after a short delay
     forceInitializeCamera();
     setTimeout(forceInitializeCamera, 1000);
+    return () => {
+      if (forcePreviewStreamRef.current) {
+        forcePreviewStreamRef.current.getTracks().forEach(track => track.stop());
+        forcePreviewStreamRef.current = null;
+      }
+    };
   }, []);
 
   // Auto-start call for doctor, patient initializes to be ready
@@ -399,6 +410,13 @@ export default function CallPage() {
     return () => clearInterval(interval);
   }, [user, callState, unmuteRemote]);
 
+  const stopForcePreview = useCallback(() => {
+    if (forcePreviewStreamRef.current) {
+      forcePreviewStreamRef.current.getTracks().forEach(track => track.stop());
+      forcePreviewStreamRef.current = null;
+    }
+  }, []);
+
   // Navigate back to dashboard after call ends
   useEffect(() => {
     if (callState === 'idle' && elapsed > 0) {
@@ -410,15 +428,17 @@ export default function CallPage() {
   useEffect(() => {
     if (callState === 'active') {
       unmuteRemote();
+      stopForcePreview();
     }
-  }, [callState, unmuteRemote]);
+  }, [callState, unmuteRemote, stopForcePreview]);
 
   useEffect(() => {
     if (callState === 'idle' && elapsed > 0) {
       const path = user?.role === 'doctor' ? '/doctor' : '/patient';
       navigate(path, { replace: true });
+      stopForcePreview();
     }
-  }, [callState, elapsed, user, navigate]);
+  }, [callState, elapsed, user, navigate, stopForcePreview]);
 
   useEffect(() => {
     if (callState === 'active') {
