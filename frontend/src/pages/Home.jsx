@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
@@ -10,6 +10,7 @@ import AnimatedButton from "../components/AnimatedButton";
 import logo from "../logo.png";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const numberFormatter = new Intl.NumberFormat("en-IN");
 
 function Home() {
   const { isAuthenticated, user, authStatus } = useSelector((state) => state.auth);
@@ -60,8 +61,6 @@ function Home() {
       active = false;
     };
   }, []);
-
-  const formatNumber = useMemo(() => new Intl.NumberFormat("en-IN"), []);
 
     if (isAuthenticated) {
       return (
