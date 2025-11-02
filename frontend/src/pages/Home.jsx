@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
@@ -9,9 +9,13 @@ import HomeAssistant from "../components/HomeAssistant";
 import AnimatedButton from "../components/AnimatedButton";
 import logo from "../logo.png";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 function Home() {
   const { isAuthenticated, user, authStatus } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
+  const [stats, setStats] = useState({ patients: 0, doctors: 0, successfulAppointments: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -31,6 +35,34 @@ function Home() {
     }
 
     // If logged in, show dashboard and logout buttons
+  useEffect(() => {
+    let active = true;
+    const loadStats = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/public-stats`);
+        if (!res.ok) throw new Error("Failed to load stats");
+        const data = await res.json();
+        if (active) {
+          setStats({
+            patients: data.patients ?? 0,
+            doctors: data.doctors ?? 0,
+            successfulAppointments: data.successfulAppointments ?? 0
+          });
+        }
+      } catch (err) {
+        console.warn("Stats request failed", err);
+      } finally {
+        if (active) setStatsLoading(false);
+      }
+    };
+    loadStats();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const formatNumber = useMemo(() => new Intl.NumberFormat("en-IN"), []);
+
     if (isAuthenticated) {
       return (
         <>
@@ -102,6 +134,30 @@ function Home() {
               </div>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      <section className="py-12 px-8" style={{ backgroundColor: 'rgba(0, 129, 112, 0.06)' }}>
+        <div className="max-w-5xl mx-auto grid gap-6 md:grid-cols-3">
+          {[
+            { label: "Patients Registered", value: stats.patients },
+            { label: "Doctors Onboarded", value: stats.doctors },
+            { label: "Successful Consultations", value: stats.successfulAppointments }
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl p-6 shadow-lg"
+              style={{
+                background: 'linear-gradient(145deg, rgba(0, 129, 112, 0.18), rgba(0, 40, 35, 0.6))',
+                border: '1px solid rgba(14, 246, 204, 0.25)'
+              }}
+            >
+              <div style={{ color: '#a2f2df', fontSize: '0.95rem', letterSpacing: '0.03em' }}>{item.label}</div>
+              <div style={{ color: '#ffffff', fontSize: '2.2rem', fontWeight: 700, marginTop: '0.35rem' }}>
+                {statsLoading ? '—' : formatNumber.format(item.value)}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

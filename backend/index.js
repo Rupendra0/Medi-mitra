@@ -8,6 +8,7 @@ import OpenAI from "openai";
 import mainRoutes from "./routes/main.js";
 import protectedRoutes from "./routes/protected.js";
 import Appointment from "./models/Appointment.js";
+import User from "./models/User.js";
 import authRoutes from "./routes/auth.js";
 import prescriptionRoutes from "./routes/prescriptionRoutes.js";
 import http from "http";
@@ -104,6 +105,29 @@ Do not copy the patient's words verbatim. Summarise their symptoms first, then g
   } catch (error) {
     console.error("❌ OpenAI request failed:", error?.message || error);
     res.status(500).json({ reply: "AI से जवाब नहीं मिला। कृपया बाद में प्रयास करें।" });
+  }
+});
+
+app.get("/api/public-stats", async (_req, res) => {
+  try {
+    const [patients, doctors, completed] = await Promise.all([
+      User.countDocuments({ role: "patient" }),
+      User.countDocuments({ role: "doctor" }),
+      Appointment.countDocuments({ status: "completed" })
+    ]);
+
+    res.json({
+      patients,
+      doctors,
+      successfulAppointments: completed
+    });
+  } catch (error) {
+    console.error("❌ Failed to fetch public stats:", error?.message || error);
+    res.status(500).json({
+      patients: 0,
+      doctors: 0,
+      successfulAppointments: 0
+    });
   }
 });
 
