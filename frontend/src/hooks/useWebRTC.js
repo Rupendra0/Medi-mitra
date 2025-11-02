@@ -308,6 +308,14 @@ export default function useWebRTC(user) {
       if (state === 'connected' || state === 'completed') {
         console.log('✅ Call connected successfully!');
         setCallState('active');
+        unmuteRemote();
+        if (pcRef.current) {
+          pcRef.current.getReceivers().forEach(receiver => {
+            if (receiver.track && receiver.track.kind === 'audio') {
+              receiver.track.enabled = true;
+            }
+          });
+        }
       } else if (state === 'failed') {
         console.error('❌ ICE connection failed - checking firewall/network');
       } else if (state === 'disconnected') {
@@ -530,6 +538,13 @@ export default function useWebRTC(user) {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.muted = false;
       ensureRemotePlayback(remoteVideoRef.current);
+    }
+    if (pcRef.current) {
+      pcRef.current.getReceivers().forEach(receiver => {
+        if (receiver.track && receiver.track.kind === 'audio') {
+          receiver.track.enabled = true;
+        }
+      });
     }
   };
 

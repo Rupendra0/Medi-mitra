@@ -402,11 +402,21 @@ export default function CallPage() {
   // Navigate back to dashboard after call ends
   useEffect(() => {
     if (callState === 'idle' && elapsed > 0) {
-      // Call ended, navigate back after a short delay
-      setTimeout(() => {
-        const dashboard = user?.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard';
-        navigate(dashboard);
-      }, 2000);
+      const path = user?.role === 'doctor' ? '/doctor' : '/patient';
+      navigate(path, { replace: true });
+    }
+  }, [callState, elapsed, user, navigate]);
+
+  useEffect(() => {
+    if (callState === 'active') {
+      unmuteRemote();
+    }
+  }, [callState, unmuteRemote]);
+
+  useEffect(() => {
+    if (callState === 'idle' && elapsed > 0) {
+      const path = user?.role === 'doctor' ? '/doctor' : '/patient';
+      navigate(path, { replace: true });
     }
   }, [callState, elapsed, user, navigate]);
 
