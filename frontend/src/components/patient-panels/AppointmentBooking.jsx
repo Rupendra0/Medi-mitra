@@ -7,9 +7,11 @@ import { useLanguage } from '../../utils/LanguageProvider';
 const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
   const [booking, setBooking] = useState({ doctor: '', date: '', symptoms: '' });
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [customSymptoms, setCustomSymptoms] = useState('');
   const [showSymptomDropdown, setShowSymptomDropdown] = useState(false);
   const [description, setDescription] = useState('');
   const [wordCount, setWordCount] = useState(0);
+  const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
@@ -50,14 +52,40 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
       newSymptoms = [...selectedSymptoms, symptom];
     }
     setSelectedSymptoms(newSymptoms);
-    setBooking({ ...booking, symptoms: newSymptoms.join(', ') });
+    
+    // Combine dropdown symptoms with custom symptoms
+    const allSymptoms = [...newSymptoms];
+    if (customSymptoms.trim()) {
+      allSymptoms.push(...customSymptoms.split(',').map(s => s.trim()).filter(s => s));
+    }
+    setBooking({ ...booking, symptoms: allSymptoms.join(', ') });
+    setError(''); // Clear error when symptom is selected
   };
 
   // Remove a symptom
   const handleSymptomRemove = (symptom) => {
     const newSymptoms = selectedSymptoms.filter(s => s !== symptom);
     setSelectedSymptoms(newSymptoms);
-    setBooking({ ...booking, symptoms: newSymptoms.join(', ') });
+    
+    // Combine remaining dropdown symptoms with custom symptoms
+    const allSymptoms = [...newSymptoms];
+    if (customSymptoms.trim()) {
+      allSymptoms.push(...customSymptoms.split(',').map(s => s.trim()).filter(s => s));
+    }
+    setBooking({ ...booking, symptoms: allSymptoms.join(', ') });
+  };
+  // Handle custom symptoms input
+  const handleCustomSymptomsChange = (e) => {
+    const value = e.target.value;
+    setCustomSymptoms(value);
+    
+    // Combine dropdown symptoms with custom symptoms
+    const allSymptoms = [...selectedSymptoms];
+    if (value.trim()) {
+      allSymptoms.push(...value.split(',').map(s => s.trim()).filter(s => s));
+    }
+    setBooking({ ...booking, symptoms: allSymptoms.join(', ') });
+    setError(''); // Clear error when symptom is entered
   };
 
   // Handle description change with word count limit
@@ -87,18 +115,76 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
         setError('Please enter a valid year');
         return;
       }
-      setError('');
     }
+    setError(''); // Clear any previous errors
     setBooking({ ...booking, date: value });
   };
 
+  // Handle document upload (images and files)
+  const handleDocumentUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const maxSize = 5 * 1024 * 1024; // 5MB per file
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf', 'image/heic'];
+    
+    const validFiles = files.filter(file => {
+      if (!allowedTypes.includes(file.type)) {
+        setError(`${file.name} is not a supported format. Please upload JPG, PNG, PDF, or HEIC files.`);
+        return false;
+      }
+      if (file.size > maxSize) {
+        setError(`${file.name} is too large. Maximum file size is 5MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    // Create preview objects for uploaded files
+    const newDocuments = validFiles.map(file => ({
+      file,
+      name: file.name,
+      size: (file.size / 1024).toFixed(2) + ' KB',
+      type: file.type,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+    }));
+
+    setUploadedDocuments([...uploadedDocuments, ...newDocuments]);
+    setError('');
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = (e) => {
+    handleDocumentUpload(e);
+  };
+
+  // Remove uploaded document
+  const handleRemoveDocument = (index) => {
+    const newDocs = [...uploadedDocuments];
+    if (newDocs[index].preview) {
+      URL.revokeObjectURL(newDocs[index].preview);
+    }
+    newDocs.splice(index, 1);
+    setUploadedDocuments(newDocs);
+  };
+
   const handleRequestCall = async () => {
-    if (!booking.doctor || !booking.date || !booking.symptoms) {
-      setError(t('pleaseSelectSymptom'));
+    // Clear previous errors first
+    setError('');
+    
+    // Detailed validation with specific error messages
+    if (!booking.doctor) {
+      setError('Please select a doctor');
       return;
     }
+    if (!booking.date) {
+      setError('Please select date and time');
+      return;
+    }
+    if (!booking.symptoms) {
+      setError('Please select or enter symptoms');
+      return;
+    }
+    
     setLoading(true);
-    setError('');
 
     // Request media permissions (for video consult)
     try {
@@ -176,17 +262,31 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
       setError(t('aiError') || 'Unable to access media devices. Booking will proceed without media.');
     }
 
-    const appointmentData = {
-      doctor: booking.doctor,
-      symptoms: booking.symptoms.split(',').map(s => s.trim()),
-      date: booking.date,
-      description: description.trim()
-    };
+    // Prepare form data for file upload
+    const formData = new FormData();
+    formData.append('doctor', booking.doctor);
+    formData.append('symptoms', JSON.stringify(booking.symptoms.split(',').map(s => s.trim())));
+    formData.append('date', booking.date);
+    formData.append('description', description.trim());
+    
+    // Append uploaded documents
+    uploadedDocuments.forEach((doc, index) => {
+      formData.append('documents', doc.file);
+    });
 
     try {
+      console.log('Submitting appointment with data:', {
+        doctor: booking.doctor,
+        symptoms: booking.symptoms,
+        date: booking.date,
+        description: description.trim(),
+        documentsCount: uploadedDocuments.length
+      });
+      
       const res = await api.apiFetch('/api/appointments', {
         method: 'POST',
-        body: appointmentData,
+        body: formData,
+        isFormData: true, // Signal to not set Content-Type header
       });
 
       if (res.ok) {
@@ -194,11 +294,19 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
         dispatch(fetchPatientData());
         setBooking({ doctor: '', date: '', symptoms: '' });
         setSelectedSymptoms([]);
+        setCustomSymptoms('');
         setDescription('');
         setWordCount(0);
+        // Clean up document previews
+        uploadedDocuments.forEach(doc => {
+          if (doc.preview) URL.revokeObjectURL(doc.preview);
+        });
+        setUploadedDocuments([]);
         onBookingSuccess();
       } else {
-        setError(res.data?.message || 'Failed to create appointment.');
+        const errorMsg = res.data?.message || 'Failed to create appointment.';
+        console.error('Appointment creation failed:', errorMsg, res);
+        setError(errorMsg);
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -208,15 +316,24 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
   };
 
   return (
-    <div>
+    <div style={{ paddingBottom: '40px' }}>
       <h2>{t('bookConsultation')}</h2>
-      <div className="simple-card">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="simple-card" style={{ marginBottom: '20px' }}>
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleRequestCall();
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+        >
           <div>
             <label className="small">{t('doctorLabel')}</label>
             <select
               value={booking.doctor}
-              onChange={(e) => setBooking({ ...booking, doctor: e.target.value })}
+              onChange={(e) => {
+                setBooking({ ...booking, doctor: e.target.value });
+                setError(''); // Clear error when doctor is selected
+              }}
               className="input-style"
             >
               <option value="">{t('selectDoctor')}</option>
@@ -260,20 +377,29 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
               </button>
               
               {showSymptomDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  maxHeight: '250px',
-                  overflowY: 'auto',
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid #0ef6cc',
-                  borderRadius: '8px',
-                  marginTop: '4px',
-                  zIndex: 1000,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                }}>
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    maxHeight: '250px',
+                    overflowY: 'auto',
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #0ef6cc',
+                    borderRadius: '8px',
+                    marginTop: '4px',
+                    zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      setShowSymptomDropdown(false);
+                    }
+                  }}
+                  tabIndex="0"
+                >
                   <div style={{ 
                     padding: '8px',
                     backgroundColor: '#0ef6cc22',
@@ -379,8 +505,8 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
             )}
             <input
               type="text"
-              value={booking.symptoms}
-              onChange={(e) => setBooking({ ...booking, symptoms: e.target.value })}
+              value={customSymptoms}
+              onChange={handleCustomSymptomsChange}
               placeholder="Or type custom symptoms (comma-separated)"
               className="input-style"
               style={{ marginTop: '8px' }}
@@ -423,13 +549,206 @@ const AppointmentBooking = ({ appointments, doctors, onBookingSuccess }) => {
               </div>
             )}
           </div>
-          {error && <p style={{ color: '#ff4d4f' }}>{error}</p>}
+
           <div>
-            <button className="btn btn-primary" onClick={handleRequestCall} disabled={loading}>
+            <label className="small">
+              Upload Medical Documents (Optional)
+              <span style={{ 
+                fontSize: '0.75rem', 
+                color: '#0ef6cc99',
+                fontWeight: 'normal',
+                marginLeft: '8px'
+              }}>
+                (Images, Prescriptions, Reports - Max 5MB each)
+              </span>
+            </label>
+            
+            <div style={{ 
+              display: 'flex', 
+              gap: '8px', 
+              marginTop: '8px',
+              flexWrap: 'wrap'
+            }}>
+              {/* File Upload Button */}
+              <label style={{
+                flex: '1',
+                minWidth: '150px',
+                padding: '10px 16px',
+                backgroundColor: '#008170',
+                color: 'white',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                transition: 'background-color 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00a08a'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#008170'}
+              >
+                📁 Choose Files
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  multiple
+                  onChange={handleDocumentUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+
+              {/* Camera Capture Button */}
+              <label style={{
+                flex: '1',
+                minWidth: '150px',
+                padding: '10px 16px',
+                backgroundColor: '#005B41',
+                color: 'white',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                transition: 'background-color 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#007055'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#005B41'}
+              >
+                📷 Take Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCameraCapture}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
+            {/* Uploaded Documents Preview */}
+            {uploadedDocuments.length > 0 && (
+              <div style={{
+                marginTop: '12px',
+                padding: '12px',
+                backgroundColor: 'rgba(0, 129, 112, 0.1)',
+                borderRadius: '8px',
+                border: '1px solid #0ef6cc33'
+              }}>
+                <div style={{ 
+                  fontSize: '0.85rem', 
+                  color: '#0ef6cc',
+                  marginBottom: '8px',
+                  fontWeight: 'bold'
+                }}>
+                  Uploaded Documents ({uploadedDocuments.length})
+                </div>
+                <div style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                  gap: '10px'
+                }}>
+                  {uploadedDocuments.map((doc, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        position: 'relative',
+                        backgroundColor: '#232D3F',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        border: '1px solid #0ef6cc44'
+                      }}
+                    >
+                      {doc.preview ? (
+                        <img
+                          src={doc.preview}
+                          alt={doc.name}
+                          style={{
+                            width: '100%',
+                            height: '100px',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '2rem'
+                        }}>
+                          📄
+                        </div>
+                      )}
+                      <div style={{
+                        padding: '6px',
+                        fontSize: '0.7rem',
+                        color: '#e0f7f3',
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {doc.name}
+                      </div>
+                      <div style={{
+                        padding: '2px 6px',
+                        fontSize: '0.65rem',
+                        color: '#0ef6cc99',
+                        textAlign: 'center'
+                      }}>
+                        {doc.size}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDocument(index)}
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ff4d4f',
+                          color: 'white',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ff7875'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ff4d4f'}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {error && <p style={{ color: '#ff4d4f' }}>{error}</p>}
+          <div style={{ marginTop: '16px' }}>
+            <button 
+              type="submit"
+              className="btn btn-primary" 
+              disabled={loading}
+              style={{ width: '100%' }}
+            >
               {loading ? t('checking') : t('requestCall')}
             </button>
           </div>
-        </div>
+        </form>
       </div>
       <div className="simple-card">
         <h4>{t('recentAppointments')}</h4>

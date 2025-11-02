@@ -87,8 +87,10 @@ export const getDoctorQueue = async (req, res) => {
       symptoms: appointment.symptoms,
       complaints: appointment.complaints,
       reason: appointment.reason,
+      description: appointment.description,
       status: appointment.status,
-      slot: appointment.slot
+      slot: appointment.slot,
+      documents: appointment.documents || []
     }));
 
     res.json(sanitizedQueue);
@@ -137,8 +139,24 @@ export const completeAppointment = async (req, res) => {
 
 export const createAppointment = async (req, res) => {
   try {
-    const { doctor: doctorInput, date, symptoms } = req.body;
+    const { doctor: doctorInput, date, description } = req.body;
     const patientId = req.user.id;
+    
+    // Check if the logged-in user is a patient
+    if (req.user.role === 'doctor') {
+      return res.status(403).json({ message: 'Doctors cannot book appointments. Please log in as a patient.' });
+    }
+    
+    // Parse symptoms (can be JSON string from FormData)
+    let symptoms = req.body.symptoms;
+    if (typeof symptoms === 'string') {
+      try {
+        symptoms = JSON.parse(symptoms);
+      } catch (e) {
+        // If parsing fails, treat as comma-separated string
+        symptoms = symptoms.split(',').map(s => s.trim()).filter(s => s);
+      }
+    }
 
     if (!doctorInput) {
       return res.status(400).json({ message: 'Doctor is required.' });
@@ -157,11 +175,23 @@ export const createAppointment = async (req, res) => {
       return res.status(400).json({ message: 'You cannot book an appointment with yourself.' });
     }
 
+    // Process uploaded documents
+    const documents = req.files ? req.files.map(file => ({
+      filename: file.filename,
+      originalName: file.originalname,
+      path: file.path,
+      size: file.size,
+      mimetype: file.mimetype,
+      uploadedAt: new Date()
+    })) : [];
+
     const appointment = new Appointment({
       patient: patientId,
       doctor: doctor._id,
       date,
       symptoms,
+      description: description || '',
+      documents: documents
     });
     
     await appointment.save();
@@ -183,7 +213,7 @@ export const createAppointment = async (req, res) => {
 
   } catch (err) {
     console.error('Error creating appointment:', err);
-    res.status(500).json({ message: 'Failed to create appointment.' });
+    res.status(500).json({ message: 'Failed to create appointment.', error: err.message });
   }
 };
 

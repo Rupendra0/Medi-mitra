@@ -90,6 +90,8 @@ export default function DashboardLayout({
             padding: '0.5rem',
             background: '#1a1a1a',
             borderRadius: '8px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
             height: '100%'
           }}
         >

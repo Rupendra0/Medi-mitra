@@ -7,6 +7,15 @@ const appointmentSchema = new mongoose.Schema({
   symptoms: [String],
   complaints: { type: String, default: '' }, // Additional field for detailed complaints
   reason: { type: String, default: '' }, // Reason for appointment
+  description: { type: String, default: '' }, // Detailed problem description from patient
+  documents: [{ 
+    filename: String,
+    originalName: String,
+    path: String,
+    size: Number,
+    mimetype: String,
+    uploadedAt: { type: Date, default: Date.now }
+  }], // Medical documents (prescriptions, reports, images)
   slot: { type: String, default: '' }, // Time slot
   status: { type: String, enum: ['scheduled', 'completed', 'cancelled'], default: 'scheduled' },
   prescription: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' }, // Link to prescription

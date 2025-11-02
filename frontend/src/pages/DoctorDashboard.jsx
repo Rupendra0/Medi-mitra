@@ -33,7 +33,7 @@ const Avatar = ({ user, size = 72 }) => {
   return <div style={style}>{initials}</div>;
 };
 
-const QueueList = ({ items, onStartCall, onMarkComplete, onGivePrescription }) => {
+const QueueList = ({ items, onStartCall, onMarkComplete, onGivePrescription, onViewDocuments }) => {
   if (!items || items.length === 0) {
     return <div className="simple-card"><p>The patient queue is empty.</p></div>;
   }
@@ -88,6 +88,20 @@ const QueueList = ({ items, onStartCall, onMarkComplete, onGivePrescription }) =
                   <span style={{ color: '#cfeee6', fontSize: '14px' }}>{item.appointmentTime}</span>
                 </div>
               )}
+              {item.description && (
+                <div style={{ marginBottom: '6px' }}>
+                  <strong style={{ color: '#00ffd0', fontSize: '12px' }}>DESCRIPTION: </strong>
+                  <span style={{ color: '#cfeee6', fontSize: '14px' }}>{item.description}</span>
+                </div>
+              )}
+              {item.documents && item.documents.length > 0 && (
+                <div style={{ marginBottom: '6px' }}>
+                  <strong style={{ color: '#00ffd0', fontSize: '12px' }}>DOCUMENTS: </strong>
+                  <span style={{ color: '#ffa500', fontSize: '14px', fontWeight: '600' }}>
+                    📎 {item.documents.length} file{item.documents.length > 1 ? 's' : ''} attached
+                  </span>
+                </div>
+              )}
               {item.reason && (
                 <div style={{ marginBottom: '6px' }}>
                   <strong style={{ color: '#00ffd0', fontSize: '12px' }}>REASON: </strong>
@@ -111,8 +125,37 @@ const QueueList = ({ items, onStartCall, onMarkComplete, onGivePrescription }) =
               Start Call
             </button>
             <button 
+              className="btn" 
+              style={{ 
+                minWidth: '110px',
+                background: '#ff6b35',
+                border: '1px solid #ff6b35',
+                color: '#fff'
+              }}
+              onClick={() => onViewDocuments(item)}
+            >
+              � Documents
+              {item.documents && item.documents.length > 0 && (
+                <span style={{ 
+                  marginLeft: '4px',
+                  background: '#fff',
+                  color: '#ff6b35',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  fontWeight: 'bold'
+                }}>
+                  {item.documents.length}
+                </span>
+              )}
+            </button>
+            <button 
               className="btn btn-secondary" 
-              style={{ minWidth: '100px' }}
+              style={{ minWidth: '110px' }}
               onClick={() => onGivePrescription(item)}
             >
               Prescription
@@ -139,6 +182,8 @@ export default function DoctorDashboard() {
   const [showExportMenu, setShowExportMenu] = useState(null); // For showing export options menu
   const [showPrescription, setShowPrescription] = useState(false);
   const [currentPrescriptionPatient, setCurrentPrescriptionPatient] = useState(null);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [currentDocumentsPatient, setCurrentDocumentsPatient] = useState(null);
   const [prescriptionData, setPrescriptionData] = useState({
     notes: '',
     medicines: [],
@@ -272,6 +317,12 @@ export default function DoctorDashboard() {
       medicines: [],
       nextVisit: 'No follow-up needed'
     });
+  };
+
+  // Document viewing handler
+  const handleViewDocuments = (patient) => {
+    setCurrentDocumentsPatient(patient);
+    setShowDocuments(true);
   };
 
   const handleAddMedicine = () => {
@@ -1009,11 +1060,14 @@ export default function DoctorDashboard() {
                     patientId: a.patientId || a.patient?._id,
                     symptoms: a.symptoms || a.reason || a.complaints || 'No symptoms specified',
                     appointmentTime: a.slot || a.time || a.appointmentTime,
-                    reason: a.reason || a.purpose
+                    reason: a.reason || a.purpose,
+                    description: a.description || '',
+                    documents: a.documents || []
                   }))} 
                   onStartCall={handleStartCall} 
                   onMarkComplete={handleMarkComplete}
                   onGivePrescription={handleGivePrescription}
+                  onViewDocuments={handleViewDocuments}
                   currentUser={currentUser}
                 />
               </div>
@@ -2391,6 +2445,200 @@ export default function DoctorDashboard() {
                 className="btn btn-primary"
               >
                 Save Prescription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Modal */}
+      {showDocuments && currentDocumentsPatient && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #071e24 0%, #0a2a32 100%)',
+            border: '1px solid rgba(0,255,208,0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            maxWidth: '900px',
+            width: '90%',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(0,255,208,0.3) transparent'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ color: '#00ffd0', margin: 0, fontSize: '24px' }}>
+                Medical Documents - {currentDocumentsPatient.name}
+              </h3>
+              <button 
+                onClick={() => setShowDocuments(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ff6b6b',
+                  fontSize: '24px',
+                  cursor: 'pointer'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Patient Information */}
+            <div style={{
+              background: 'rgba(0,255,208,0.05)',
+              border: '1px solid rgba(0,255,208,0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '24px'
+            }}>
+              <div style={{ marginBottom: '8px' }}>
+                <strong style={{ color: '#00ffd0' }}>Patient: </strong>
+                <span style={{ color: '#fff' }}>{currentDocumentsPatient.name}</span>
+              </div>
+              {currentDocumentsPatient.symptoms && (
+                <div style={{ marginBottom: '8px' }}>
+                  <strong style={{ color: '#00ffd0' }}>Symptoms: </strong>
+                  <span style={{ color: '#cfeee6' }}>{currentDocumentsPatient.symptoms}</span>
+                </div>
+              )}
+              {currentDocumentsPatient.description && (
+                <div style={{ marginBottom: '8px' }}>
+                  <strong style={{ color: '#00ffd0' }}>Description: </strong>
+                  <span style={{ color: '#cfeee6' }}>{currentDocumentsPatient.description}</span>
+                </div>
+              )}
+              {currentDocumentsPatient.appointmentTime && (
+                <div>
+                  <strong style={{ color: '#00ffd0' }}>Appointment Time: </strong>
+                  <span style={{ color: '#cfeee6' }}>{currentDocumentsPatient.appointmentTime}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Documents Grid */}
+            <div>
+              <h4 style={{ color: '#00ffd0', marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>
+                📎 Uploaded Documents ({currentDocumentsPatient.documents?.length || 0})
+              </h4>
+              
+              {currentDocumentsPatient.documents && currentDocumentsPatient.documents.length > 0 ? (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                  gap: '16px'
+                }}>
+                  {currentDocumentsPatient.documents.map((doc, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        background: 'rgba(0,255,208,0.05)',
+                        border: '1px solid rgba(0,255,208,0.1)',
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s, border-color 0.2s'
+                      }}
+                      onClick={() => {
+                        const docUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/appointments/${currentDocumentsPatient.appointmentId}/documents/${doc.filename}`;
+                        window.open(docUrl, '_blank');
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.borderColor = 'rgba(0,255,208,0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.borderColor = 'rgba(0,255,208,0.1)';
+                      }}
+                    >
+                      {doc.mimetype && doc.mimetype.startsWith('image/') ? (
+                        <img
+                          src={`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/appointments/${currentDocumentsPatient.appointmentId}/documents/${doc.filename}`}
+                          alt={doc.originalName}
+                          style={{
+                            width: '100%',
+                            height: '150px',
+                            objectFit: 'cover'
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '150px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '3rem',
+                          background: 'rgba(0,0,0,0.3)'
+                        }}>
+                          📄
+                        </div>
+                      )}
+                      <div style={{
+                        padding: '12px',
+                        background: 'rgba(0,0,0,0.2)'
+                      }}>
+                        <div style={{
+                          fontSize: '0.85rem',
+                          color: '#fff',
+                          marginBottom: '4px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontWeight: '600'
+                        }}>
+                          {doc.originalName || doc.filename}
+                        </div>
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: '#00ffd0',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <span>{(doc.size / 1024).toFixed(2)} KB</span>
+                          <span>📥 View</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#cfeee6',
+                  background: 'rgba(0,255,208,0.05)',
+                  borderRadius: '12px'
+                }}>
+                  No documents uploaded for this appointment.
+                </div>
+              )}
+            </div>
+
+            {/* Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <button 
+                onClick={() => setShowDocuments(false)}
+                className="btn btn-primary"
+              >
+                Close
               </button>
             </div>
           </div>

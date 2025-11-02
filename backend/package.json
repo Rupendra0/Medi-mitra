@@ -19,6 +19,7 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.2",
+    "multer": "^2.0.2",
     "socket.io": "^4.8.1",
     "webrtc-adapter": "^9.0.3"
   },

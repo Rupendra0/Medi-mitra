@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import mainRoutes from "./routes/main.js";
 import protectedRoutes from "./routes/protected.js";
@@ -15,6 +17,9 @@ import { Server as SocketIOServer } from "socket.io";
 import initSocket from "./services/socket.js";
 import Ragroutes from "./routes/ragRoutes.js";
 import os from "os";   // ✅ Added to detect IPv4
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const app = express();
@@ -39,6 +44,9 @@ app.use(cors({
 
 app.use(bodyParser.json());
 app.use(cookieParser());
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use("/api/auth", authRoutes);

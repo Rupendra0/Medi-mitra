@@ -4,11 +4,15 @@ export async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const opts = {
     credentials: 'include', // 🔑 include cookies
-    headers: { 'Content-Type': 'application/json' },
     ...options,
   };
 
-  // Convert body to JSON string if it's a plain object
+  // Don't set Content-Type for FormData, browser will set it with boundary
+  if (!options.isFormData) {
+    opts.headers = { 'Content-Type': 'application/json', ...options.headers };
+  }
+
+  // Convert body to JSON string if it's a plain object (not FormData)
   if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
     opts.body = JSON.stringify(opts.body);
   }
