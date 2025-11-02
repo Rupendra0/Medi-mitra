@@ -29,7 +29,8 @@ export default function CallPage() {
     retryRemoteStreamAttachment,
     retryLocalStreamAttachment,
     incomingOffer,
-    callState
+    callState,
+    unmuteRemote
   } = useWebRTC(user);
 
   // Local UI state for media toggles
@@ -364,6 +365,9 @@ export default function CallPage() {
         });
         setHasRemoteStream(true);
         console.log('✅ Remote video element should now be visible');
+        if (callState === 'active') {
+          unmuteRemote();
+        }
       } else {
         console.log('❌ No remote stream:', {
           hasVideoElement: !!remoteVideoRef.current,
@@ -391,10 +395,9 @@ export default function CallPage() {
         }
       }
     };
-
     const interval = setInterval(checkStreams, 500);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, callState, unmuteRemote]);
 
   // Navigate back to dashboard after call ends
   useEffect(() => {
@@ -407,6 +410,11 @@ export default function CallPage() {
     }
   }, [callState, elapsed, user, navigate]);
 
+  useEffect(() => {
+    if (callState === 'active') {
+      unmuteRemote();
+    }
+  }, [callState, unmuteRemote]);
   const computedCallState = () => {
     if (incomingOffer && callState === 'incoming') return 'ringing';
     return callState;
