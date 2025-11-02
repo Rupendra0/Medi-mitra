@@ -8,6 +8,15 @@ import api from '../utils/api';
 import HomeAssistant from "../components/HomeAssistant";
 import AnimatedButton from "../components/AnimatedButton";
 import logo from "../logo.png";
+import {
+  FaUserFriends,
+  FaUserMd,
+  FaHeartbeat,
+  FaShieldAlt,
+  FaClinicMedical,
+  FaChartLine,
+  FaRobot
+} from "react-icons/fa";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const numberFormatter = new Intl.NumberFormat("en-IN");
@@ -136,24 +145,99 @@ function Home() {
       </section>
 
       <section className="py-12 px-8" style={{ backgroundColor: 'rgba(0, 129, 112, 0.06)' }}>
-        <div className="max-w-5xl mx-auto grid gap-6 md:grid-cols-3">
-          {[
-            { label: "Patients Registered", value: stats.patients },
-            { label: "Doctors Onboarded", value: stats.doctors },
-            { label: "Successful Consultations", value: stats.successfulAppointments }
+        <div className="max-w-6xl mx-auto grid gap-6 md:grid-cols-3">
+          {[ 
+            { label: "Patients Registered", value: stats.patients, icon: FaUserFriends },
+            { label: "Doctors Onboarded", value: stats.doctors, icon: FaUserMd },
+            { label: "Successful Consultations", value: stats.successfulAppointments, icon: FaHeartbeat }
           ].map((item) => (
             <div
               key={item.label}
-              className="rounded-2xl p-6 shadow-lg"
+              className="rounded-2xl p-6 shadow-lg flex flex-col gap-3"
               style={{
-                background: 'linear-gradient(145deg, rgba(0, 129, 112, 0.18), rgba(0, 40, 35, 0.6))',
-                border: '1px solid rgba(14, 246, 204, 0.25)'
+                background: 'linear-gradient(145deg, rgba(0, 129, 112, 0.22), rgba(0, 40, 35, 0.7))',
+                border: '1px solid rgba(14, 246, 204, 0.25)',
+                boxShadow: '0 25px 45px rgba(0, 129, 112, 0.18)'
               }}
             >
-              <div style={{ color: '#a2f2df', fontSize: '0.95rem', letterSpacing: '0.03em' }}>{item.label}</div>
-              <div style={{ color: '#ffffff', fontSize: '2.2rem', fontWeight: 700, marginTop: '0.35rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '16px',
+                  background: 'rgba(14, 246, 204, 0.15)',
+                  border: '1px solid rgba(14, 246, 204, 0.35)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#0EF6CC',
+                  fontSize: '1.3rem'
+                }}>
+                  {React.createElement(item.icon)}
+                </span>
+                <div style={{ color: '#a2f2df', fontSize: '0.95rem', letterSpacing: '0.03em' }}>{item.label}</div>
+              </div>
+              <div style={{ color: '#ffffff', fontSize: '2.4rem', fontWeight: 700 }}>
                 {statsLoading ? '—' : numberFormatter.format(item.value)}
               </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="max-w-6xl mx-auto mt-12 grid gap-6 md:grid-cols-4">
+          {[ 
+            {
+              title: "Govt ID Onboarding",
+              description: "Run secure Bharat stack KYC so villagers can register once and book visits easily.",
+              icon: FaShieldAlt
+            },
+            {
+              title: "Village Queue Desk",
+              description: "ASHA workers log symptoms and schedule calls while doctors handle the live consults.",
+              icon: FaClinicMedical
+            },
+            {
+              title: "Medicine Tracker",
+              description: "Daily reminders and refill alerts ensure chronic patients never miss stock.",
+              icon: FaChartLine
+            },
+            {
+              title: "AI Dialer Support",
+              description: "Gemini answers symptom queries and helps the team triage calls in local languages.",
+              icon: FaRobot
+            }
+          ].map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-3xl p-6"
+              style={{
+                background: 'linear-gradient(160deg, rgba(0, 129, 112, 0.22), rgba(0, 40, 35, 0.8))',
+                border: '1px solid rgba(14, 246, 204, 0.18)',
+                boxShadow: '0 20px 45px rgba(0, 129, 112, 0.2)',
+                minHeight: '220px'
+              }}
+            >
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
+                background: 'rgba(14, 246, 204, 0.18)',
+                border: '1px solid rgba(14, 246, 204, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#0EF6CC',
+                marginBottom: '1.25rem',
+                fontSize: '1.25rem'
+              }}>
+                {React.createElement(feature.icon)}
+              </div>
+              <div style={{ color: '#ffffff', fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.75rem' }}>
+                {feature.title}
+              </div>
+              <p style={{ color: 'rgba(210, 250, 242, 0.85)', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                {feature.description}
+              </p>
             </div>
           ))}
         </div>
