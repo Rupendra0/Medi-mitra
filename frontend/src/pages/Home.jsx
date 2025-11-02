@@ -35,7 +35,30 @@ function Home() {
       return <div style={{ height: '52px' }} />; // Placeholder with same height as buttons
     }
 
-    // If logged in, show dashboard and logout buttons
+    if (isAuthenticated) {
+      return (
+        <>
+          <Link to={user?.role === 'doctor' ? '/doctor' : '/patient'}>
+            <AnimatedButton variant="primary" size="large">Go to Dashboard</AnimatedButton>
+          </Link>
+          <AnimatedButton variant="secondary" size="large" onClick={handleLogout}>Logout</AnimatedButton>
+        </>
+      );
+    }
+
+    // If logged out, show login and signup buttons
+    return (
+      <>
+        <Link to="/login">
+          <AnimatedButton variant="primary" size="large">Login</AnimatedButton>
+        </Link>
+        <Link to="/signup">
+          <AnimatedButton variant="secondary" size="large">Sign Up</AnimatedButton>
+        </Link>
+      </>
+    );
+  };
+
   useEffect(() => {
     let active = true;
     const loadStats = async () => {
@@ -61,30 +84,6 @@ function Home() {
       active = false;
     };
   }, []);
-
-    if (isAuthenticated) {
-      return (
-        <>
-          <Link to={user?.role === 'doctor' ? '/doctor' : '/patient'}>
-            <AnimatedButton variant="primary" size="large">Go to Dashboard</AnimatedButton>
-          </Link>
-          <AnimatedButton variant="secondary" size="large" onClick={handleLogout}>Logout</AnimatedButton>
-        </>
-      );
-    }
-
-    // If logged out, show login and signup buttons
-    return (
-      <>
-        <Link to="/login">
-          <AnimatedButton variant="primary" size="large">Login</AnimatedButton>
-        </Link>
-        <Link to="/signup">
-          <AnimatedButton variant="secondary" size="large">Sign Up</AnimatedButton>
-        </Link>
-      </>
-    );
-  };
 
   return (
     <div style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)', minHeight: '100vh' }}>
@@ -153,7 +152,7 @@ function Home() {
             >
               <div style={{ color: '#a2f2df', fontSize: '0.95rem', letterSpacing: '0.03em' }}>{item.label}</div>
               <div style={{ color: '#ffffff', fontSize: '2.2rem', fontWeight: 700, marginTop: '0.35rem' }}>
-                {statsLoading ? '—' : formatNumber.format(item.value)}
+                {statsLoading ? '—' : numberFormatter.format(item.value)}
               </div>
             </div>
           ))}
